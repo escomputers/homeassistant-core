@@ -3908,6 +3908,24 @@
       "config_flow": true,
       "iot_class": "local_push"
     },
+    "nodbit": {
+      "name": "Nodbit",
+      "integration_type": "hub",
+      "config_flow": false,
+      "iot_class": "cloud_push"
+    },
+    "nodbit_call": {
+      "name": "Nodbit Call",
+      "integration_type": "hub",
+      "config_flow": false,
+      "iot_class": "cloud_push"
+    },
+    "nodbit_sms": {
+      "name": "Nodbit SMS",
+      "integration_type": "hub",
+      "config_flow": false,
+      "iot_class": "cloud_push"
+    },
     "norway_air": {
       "name": "Om Luftkvalitet i Norge (Norway Air)",
       "integration_type": "hub",
