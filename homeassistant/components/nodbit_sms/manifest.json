@@ -1,0 +1,9 @@
+{
+  "domain": "nodbit_sms",
+  "name": "Nodbit SMS",
+  "codeowners": [],
+  "dependencies": ["nodbit"],
+  "documentation": "https://www.nodbit.com",
+  "iot_class": "cloud_push",
+  "loggers": ["nodbit"]
+}
