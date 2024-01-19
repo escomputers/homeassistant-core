@@ -58,12 +58,12 @@ class AugustCamera(AugustEntityMixin, Camera):
         return self._device.has_subscription
 
     @property
-    def model(self):
+    def model(self) -> str | None:
         """Return the camera model."""
         return self._detail.model
 
     @callback
-    def _update_from_data(self):
+    def _update_from_data(self) -> None:
         """Get the latest state of the sensor."""
         doorbell_activity = self._data.activity_stream.get_latest_device_activity(
             self._device_id,

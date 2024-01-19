@@ -1,7 +1,7 @@
 """Base class for August entity."""
 from abc import abstractmethod
 
-from yalexs.doorbell import Doorbell
+from yalexs.doorbell import Doorbell, DoorbellDetail
 from yalexs.lock import Lock, LockDetail
 from yalexs.util import get_configuration_url
 
@@ -46,7 +46,7 @@ class AugustEntityMixin(Entity):
         return self._device.device_id
 
     @property
-    def _detail(self):
+    def _detail(self) -> DoorbellDetail | LockDetail:
         return self._data.get_device_detail(self._device.device_id)
 
     @property
@@ -63,7 +63,7 @@ class AugustEntityMixin(Entity):
     def _update_from_data(self) -> None:
         """Update the entity state from the data object."""
 
-    async def async_added_to_hass(self):
+    async def async_added_to_hass(self) -> None:
         """Subscribe to updates."""
         self.async_on_remove(
             self._data.async_subscribe_device_id(
