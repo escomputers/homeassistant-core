@@ -16,9 +16,8 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 _LOGGER = logging.getLogger(__name__)
 
-BASE_URL = "https://alerts.nodbit.com"
+BASE_URL = f"https://api.{DATA_NODBIT}.com/alerts"
 TIMEOUT = 10
-
 HEADERS = {"Content-Type": CONTENT_TYPE_JSON}
 
 
@@ -59,12 +58,13 @@ class NodbitCallNotificationService(BaseNotificationService):
             timeout=TIMEOUT,
         )
 
-        if resp.status_code == HTTPStatus.OK:
+        obj = json.loads(resp.text)
+
+        response_code = obj.get("statusCode")
+        response_body = obj.get("body")
+
+        if response_code == HTTPStatus.OK:
+            _LOGGER.info(msg=response_body)
             return
 
-        obj = json.loads(resp.text)
-        response_msg = obj.get("response_msg")
-        response_code = obj.get("response_code")
-        _LOGGER.error(
-            "Error %s : %s (Code %s)", resp.status_code, response_msg, response_code
-        )
+        _LOGGER.error("Error Code %s: %s", response_code, response_body)

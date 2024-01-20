@@ -1,3 +1,3 @@
-"""Constants for nodbit_notify integration."""
+"""Constants for Nodbit."""
 
 DOMAIN = "nodbit"

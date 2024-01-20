@@ -1,14 +1,13 @@
 {
   "domain": "nodbit",
   "name": "Nodbit",
-  "codeowners": ["@nodbit"],
+  "codeowners": ["@escomputers"],
   "config_flow": false,
   "dependencies": [],
-  "documentation": "https://www.nodbit.com",
+  "documentation": "https://www.home-assistant.io/integrations/nodbit",
   "homekit": {},
   "iot_class": "cloud_push",
   "loggers": ["nodbit"],
-  "requirements": ["requests==2.31.0"],
   "ssdp": [],
   "zeroconf": []
 }
