@@ -3,7 +3,7 @@
   "name": "Nodbit SMS",
   "codeowners": [],
   "dependencies": ["nodbit"],
-  "documentation": "https://www.nodbit.com",
+  "documentation": "https://www.home-assistant.io/integrations/nodbit",
   "iot_class": "cloud_push",
   "loggers": ["nodbit"]
 }
