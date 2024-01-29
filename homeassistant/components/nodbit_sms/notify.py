@@ -16,7 +16,7 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 _LOGGER = logging.getLogger(__name__)
 
-BASE_URL = f"https://api.{DATA_NODBIT}.com/alerts"
+BASE_URL = f"https://api.{DATA_NODBIT}.com/v1/alerts"
 TIMEOUT = 10
 HEADERS = {"Content-Type": CONTENT_TYPE_JSON}
 
