@@ -7,5 +7,5 @@
   "documentation": "https://www.home-assistant.io/integrations/twilio",
   "iot_class": "cloud_push",
   "loggers": ["twilio"],
-  "requirements": ["twilio==6.32.0"]
+  "requirements": ["twilio"]
 }
