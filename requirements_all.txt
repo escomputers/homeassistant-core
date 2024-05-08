@@ -2732,7 +2732,7 @@ tuya-iot-py-sdk==0.6.6
 twentemilieu==2.0.1
 
 # homeassistant.components.twilio
-twilio
+twilio==6.32.0
 
 # homeassistant.components.twitch
 twitchAPI==4.0.0
