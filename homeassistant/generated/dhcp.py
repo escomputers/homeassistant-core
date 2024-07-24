@@ -5,7 +5,9 @@ To update, run python3 -m script.hassfest
 
 from __future__ import annotations
 
-DHCP: list[dict[str, str | bool]] = [
+from typing import Final
+
+DHCP: Final[list[dict[str, str | bool]]] = [
     {
         "domain": "airzone",
         "macaddress": "E84F25*",
@@ -57,6 +59,11 @@ DHCP: list[dict[str, str | bool]] = [
         "domain": "axis",
         "hostname": "axis-b8a44f*",
         "macaddress": "B8A44F*",
+    },
+    {
+        "domain": "axis",
+        "hostname": "axis-e82725*",
+        "macaddress": "E82725*",
     },
     {
         "domain": "blink",
@@ -645,6 +652,11 @@ DHCP: list[dict[str, str | bool]] = [
     },
     {
         "domain": "tplink",
+        "hostname": "p1*",
+        "macaddress": "5091E3*",
+    },
+    {
+        "domain": "tplink",
         "hostname": "k[lps]*",
         "macaddress": "9C5322*",
     },
@@ -790,6 +802,11 @@ DHCP: list[dict[str, str | bool]] = [
     },
     {
         "domain": "tplink",
+        "hostname": "l[59]*",
+        "macaddress": "54AF97*",
+    },
+    {
+        "domain": "tplink",
         "hostname": "k[lps]*",
         "macaddress": "AC15A2*",
     },
@@ -810,17 +827,27 @@ DHCP: list[dict[str, str | bool]] = [
     },
     {
         "domain": "tplink",
-        "hostname": "l5*",
+        "hostname": "l[59]*",
         "macaddress": "5CE931*",
     },
     {
         "domain": "tplink",
-        "hostname": "l5*",
+        "hostname": "l[59]*",
         "macaddress": "3C52A1*",
     },
     {
         "domain": "tplink",
-        "hostname": "l5*",
+        "hostname": "l[59]*",
+        "macaddress": "5C628B*",
+    },
+    {
+        "domain": "tplink",
+        "hostname": "l[59]*",
+        "macaddress": "14EBB6*",
+    },
+    {
+        "domain": "tplink",
+        "hostname": "tp*",
         "macaddress": "5C628B*",
     },
     {
@@ -830,8 +857,33 @@ DHCP: list[dict[str, str | bool]] = [
     },
     {
         "domain": "tplink",
+        "hostname": "s5*",
+        "macaddress": "482254*",
+    },
+    {
+        "domain": "tplink",
         "hostname": "p1*",
         "macaddress": "30DE4B*",
+    },
+    {
+        "domain": "tplink",
+        "hostname": "p1*",
+        "macaddress": "3C52A1*",
+    },
+    {
+        "domain": "tplink",
+        "hostname": "tp*",
+        "macaddress": "3C52A1*",
+    },
+    {
+        "domain": "tplink",
+        "hostname": "s5*",
+        "macaddress": "3C52A1*",
+    },
+    {
+        "domain": "tplink",
+        "hostname": "h1*",
+        "macaddress": "3C52A1*",
     },
     {
         "domain": "tplink",
@@ -840,8 +892,83 @@ DHCP: list[dict[str, str | bool]] = [
     },
     {
         "domain": "tplink",
+        "hostname": "p1*",
+        "macaddress": "A842A1*",
+    },
+    {
+        "domain": "tplink",
         "hostname": "l9*",
         "macaddress": "3460F9*",
+    },
+    {
+        "domain": "tplink",
+        "hostname": "p1*",
+        "macaddress": "3460F9*",
+    },
+    {
+        "domain": "tplink",
+        "hostname": "hs*",
+        "macaddress": "704F57*",
+    },
+    {
+        "domain": "tplink",
+        "hostname": "k[lps]*",
+        "macaddress": "74DA88*",
+    },
+    {
+        "domain": "tplink",
+        "hostname": "p1*",
+        "macaddress": "74DA88*",
+    },
+    {
+        "domain": "tplink",
+        "hostname": "p3*",
+        "macaddress": "788CB5*",
+    },
+    {
+        "domain": "tplink",
+        "hostname": "p1*",
+        "macaddress": "CC32E5*",
+    },
+    {
+        "domain": "tplink",
+        "hostname": "k[lps]*",
+        "macaddress": "CC32E5*",
+    },
+    {
+        "domain": "tplink",
+        "hostname": "hs*",
+        "macaddress": "CC32E5*",
+    },
+    {
+        "domain": "tplink",
+        "hostname": "k[lps]*",
+        "macaddress": "D80D17*",
+    },
+    {
+        "domain": "tplink",
+        "hostname": "k[lps]*",
+        "macaddress": "D84732*",
+    },
+    {
+        "domain": "tplink",
+        "hostname": "p1*",
+        "macaddress": "F0A731*",
+    },
+    {
+        "domain": "tplink",
+        "hostname": "l9*",
+        "macaddress": "F0A731*",
+    },
+    {
+        "domain": "tplink",
+        "hostname": "ks2*",
+        "macaddress": "F0A731*",
+    },
+    {
+        "domain": "tplink",
+        "hostname": "kh1*",
+        "macaddress": "F0A731*",
     },
     {
         "domain": "tuya",
@@ -890,6 +1017,10 @@ DHCP: list[dict[str, str | bool]] = [
     {
         "domain": "twinkly",
         "hostname": "twinkly_*",
+    },
+    {
+        "domain": "twinkly",
+        "hostname": "twinkly-*",
     },
     {
         "domain": "unifiprotect",

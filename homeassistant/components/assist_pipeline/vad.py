@@ -1,11 +1,15 @@
 """Voice activity detection."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum
+import logging
 from typing import Final, cast
+
+_LOGGER = logging.getLogger(__name__)
 
 _SAMPLE_RATE: Final = 16000  # Hz
 _SAMPLE_WIDTH: Final = 2  # bytes
@@ -158,6 +162,10 @@ class VoiceCommandSegmenter:
         """
         self._timeout_seconds_left -= chunk_seconds
         if self._timeout_seconds_left <= 0:
+            _LOGGER.warning(
+                "VAD end of speech detection timed out after %s seconds",
+                self.timeout_seconds,
+            )
             self.reset()
             return False
 

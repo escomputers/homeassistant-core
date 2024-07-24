@@ -1,4 +1,5 @@
 """Support for OpenTherm Gateway climate devices."""
+
 from __future__ import annotations
 
 import logging
@@ -84,6 +85,7 @@ class OpenThermClimate(ClimateEntity):
     _away_state_a = False
     _away_state_b = False
     _current_operation: HVACAction | None = None
+    _enable_turn_on_off_backwards_compatibility = False
 
     def __init__(self, gw_dev, options):
         """Initialize the device."""
@@ -136,7 +138,7 @@ class OpenThermClimate(ClimateEntity):
     @callback
     def receive_report(self, status):
         """Receive and handle a new report from the Gateway."""
-        self._attr_available = status != gw_vars.DEFAULT_STATUS
+        self._attr_available = self._gateway.connected
         ch_active = status[gw_vars.BOILER].get(gw_vars.DATA_SLAVE_CH_ACTIVE)
         flame_on = status[gw_vars.BOILER].get(gw_vars.DATA_SLAVE_FLAME_ON)
         cooling_active = status[gw_vars.BOILER].get(gw_vars.DATA_SLAVE_COOLING_ACTIVE)
@@ -211,7 +213,7 @@ class OpenThermClimate(ClimateEntity):
     def current_temperature(self):
         """Return the current temperature."""
         if self._current_temperature is None:
-            return
+            return None
         if self.floor_temp is True:
             if self.precision == PRECISION_HALVES:
                 return int(2 * self._current_temperature) / 2
