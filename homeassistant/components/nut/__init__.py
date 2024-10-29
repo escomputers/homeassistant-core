@@ -86,6 +86,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: NutConfigEntry) -> bool:
     coordinator = DataUpdateCoordinator(
         hass,
         _LOGGER,
+        config_entry=entry,
         name="NUT resource status",
         update_method=async_update_data,
         update_interval=timedelta(seconds=scan_interval),
@@ -172,7 +173,7 @@ def _firmware_from_status(status: dict[str, str]) -> str | None:
 
 
 def _serial_from_status(status: dict[str, str]) -> str | None:
-    """Find the best serialvalue from the status."""
+    """Find the best serial value from the status."""
     serial = status.get("device.serial") or status.get("ups.serial")
     if serial and (
         serial.lower() in NUT_FAKE_SERIAL or serial.count("0") == len(serial.strip())
