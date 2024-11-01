@@ -1,4 +1,5 @@
 """Nodbit Call service for notify component."""
+
 from __future__ import annotations
 
 from http import HTTPStatus
@@ -8,7 +9,7 @@ from typing import Any
 
 import requests
 
-from homeassistant.components.nodbit import DATA_NODBIT
+from homeassistant.components.nodbit import auth, const
 from homeassistant.components.notify import ATTR_TARGET, BaseNotificationService
 from homeassistant.const import CONTENT_TYPE_JSON
 from homeassistant.core import HomeAssistant
@@ -16,9 +17,10 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 _LOGGER = logging.getLogger(__name__)
 
-BASE_URL = f"https://api.{DATA_NODBIT}.com/v1/alerts"
-TIMEOUT = 10
-HEADERS = {"Content-Type": CONTENT_TYPE_JSON}
+
+HTTP_TIMEOUT = const.HTTP_TIMEOUT
+NODBIT_DOMAIN = const.NODBIT_DOMAIN
+SVC_URL = const.SVC_URL
 
 
 def get_service(
@@ -27,15 +29,17 @@ def get_service(
     discovery_info: DiscoveryInfoType | None = None,
 ) -> NodbitCallNotificationService:
     """Get the Nodbit Call notification service."""
-    return NodbitCallNotificationService(hass.data[DATA_NODBIT], "call")
+    return NodbitCallNotificationService(hass.data[NODBIT_DOMAIN], "call")
 
 
 class NodbitCallNotificationService(BaseNotificationService):
     """Implement the notification service for Nodbit Call service."""
 
-    def __init__(self, nodbit_client, alert_type) -> None:
+    def __init__(self, data, alert_type) -> None:
         """Initialize the service."""
-        self.client = nodbit_client
+        self.user_id = data["user_id"]
+        self.user_pwd = data["user_pwd"]
+        self.key = data["key"]
         self.alert_type = alert_type
 
     def send_message(self, message: str = "", **kwargs: Any) -> None:
@@ -44,18 +48,22 @@ class NodbitCallNotificationService(BaseNotificationService):
             _LOGGER.info("At least 1 target is required")
             return
 
+        # id_token = auth.get_id_token(self.user_id, self.user_pwd, self.key)
+        id_token = auth.get_id_token()
+
+        headers = {
+            "Content-Type": CONTENT_TYPE_JSON,
+            "Authorization": f"Bearer {id_token}",
+        }
+
         data = {
-            "auth_data": self.client,
             "alert_type": self.alert_type,
             "message": message,
             "targets": targets,
         }
 
         resp = requests.post(
-            BASE_URL,
-            data=json.dumps(data),
-            headers=HEADERS,
-            timeout=TIMEOUT,
+            SVC_URL, headers=headers, json=json.dumps(data), timeout=HTTP_TIMEOUT
         )
 
         obj = json.loads(resp.text)
