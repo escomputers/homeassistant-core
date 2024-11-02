@@ -13,17 +13,24 @@ to ensure valid authentication during API calls. Key functionalities include:
 import json
 import logging
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientTimeout
+
+from homeassistant.helpers.storage import Store
 
 from .const import AUTH_DOMAIN, HEADERS, HTTP_TIMEOUT, ID
 
 _LOGGER = logging.getLogger(__name__)
+timeout = ClientTimeout(total=HTTP_TIMEOUT)
 
 
 async def login(
-    user_id: str, user_pass: str, secret_hash: str, async_session: ClientSession
+    user_id: str,
+    user_pass: str,
+    secret_hash: str,
+    async_session: ClientSession,
+    store_obj: Store,
 ) -> str:
-    """Log into Cognito to retrieve new tokens."""
+    """Log in to retrieve new tokens."""
 
     _LOGGER.info("Logging in")
     login_payload = {
@@ -40,22 +47,29 @@ async def login(
         AUTH_DOMAIN,
         headers=HEADERS,
         json=login_payload,
-        timeout=HTTP_TIMEOUT,
+        timeout=timeout,
     ) as response:
         response.raise_for_status()
         response_text = await response.text()
         obj = json.loads(response_text)
 
     id_tok = obj["AuthenticationResult"]["IdToken"]
+    await store_obj.async_save({"id_token": id_tok})
 
     _LOGGER.info("Successfully logged in")
     return id_tok
 
 
 async def get_id_token(
-    usr_id: str, usr_pwd: str, scr_hash: str, session: ClientSession
+    usr_id: str, usr_pwd: str, scr_hash: str, session: ClientSession, store: Store
 ) -> str:
     """Retrieve a valid ID Token, refresh or re-authenticate if necessary."""
     _LOGGER.info("Retrieving ID token")
-    id_token = await login(usr_id, usr_pwd, scr_hash, session)
+
+    existing_data = await store.async_load()
+
+    if existing_data is None:
+        id_token = await login(usr_id, usr_pwd, scr_hash, session, store)
+    else:
+        id_token = existing_data.get("id_token")
     return id_token
