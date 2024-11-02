@@ -1,4 +1,5 @@
 """Provides core stream functionality."""
+
 from __future__ import annotations
 
 import asyncio
@@ -8,12 +9,12 @@ from dataclasses import dataclass, field
 import datetime
 from enum import IntEnum
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from aiohttp import web
 import numpy as np
 
-from homeassistant.components.http.view import HomeAssistantView
+from homeassistant.components.http import KEY_HASS, HomeAssistantView
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers.event import async_call_later
 from homeassistant.util.decorator import Registry
@@ -26,7 +27,8 @@ from .const import (
 )
 
 if TYPE_CHECKING:
-    from av import CodecContext, Packet
+    from av import Packet
+    from av.video.codeccontext import VideoCodecContext
 
     from homeassistant.components.camera import DynamicStreamSettings
 
@@ -333,7 +335,7 @@ class StreamOutput:
         try:
             async with asyncio.timeout(timeout):
                 await self._part_event.wait()
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return False
         return True
 
@@ -380,7 +382,7 @@ class StreamView(HomeAssistantView):
         self, request: web.Request, token: str, sequence: str = "", part_num: str = ""
     ) -> web.StreamResponse:
         """Start a GET request."""
-        hass = request.app["hass"]
+        hass = request.app[KEY_HASS]
 
         stream = next(
             (s for s in hass.data[DOMAIN][ATTR_STREAMS] if s.access_token == token),
@@ -388,7 +390,7 @@ class StreamView(HomeAssistantView):
         )
 
         if not stream:
-            raise web.HTTPNotFound()
+            raise web.HTTPNotFound
 
         # Start worker if not already started
         await stream.start()
@@ -399,7 +401,7 @@ class StreamView(HomeAssistantView):
         self, request: web.Request, stream: Stream, sequence: str, part_num: str
     ) -> web.StreamResponse:
         """Handle the stream request."""
-        raise NotImplementedError()
+        raise NotImplementedError
 
 
 TRANSFORM_IMAGE_FUNCTION = (
@@ -437,17 +439,17 @@ class KeyFrameConverter:
         """Initialize."""
 
         # Keep import here so that we can import stream integration
-        # without installingreqs
+        # without installing reqs
         # pylint: disable-next=import-outside-toplevel
         from homeassistant.components.camera.img_util import TurboJPEGSingleton
 
-        self._packet: Packet = None
+        self._packet: Packet | None = None
         self._event: asyncio.Event = asyncio.Event()
         self._hass = hass
         self._image: bytes | None = None
         self._turbojpeg = TurboJPEGSingleton.instance()
         self._lock = asyncio.Lock()
-        self._codec_context: CodecContext | None = None
+        self._codec_context: VideoCodecContext | None = None
         self._stream_settings = stream_settings
         self._dynamic_stream_settings = dynamic_stream_settings
 
@@ -459,7 +461,7 @@ class KeyFrameConverter:
         self._packet = packet
         self._hass.loop.call_soon_threadsafe(self._event.set)
 
-    def create_codec_context(self, codec_context: CodecContext) -> None:
+    def create_codec_context(self, codec_context: VideoCodecContext) -> None:
         """Create a codec context to be used for decoding the keyframes.
 
         This is run by the worker thread and will only be called once per worker.
@@ -473,7 +475,9 @@ class KeyFrameConverter:
         # pylint: disable-next=import-outside-toplevel
         from av import CodecContext
 
-        self._codec_context = CodecContext.create(codec_context.name, "r")
+        self._codec_context = cast(
+            "VideoCodecContext", CodecContext.create(codec_context.name, "r")
+        )
         self._codec_context.extradata = codec_context.extradata
         self._codec_context.skip_frame = "NONKEY"
         self._codec_context.thread_type = "NONE"

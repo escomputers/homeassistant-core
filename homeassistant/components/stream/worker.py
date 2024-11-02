@@ -1,4 +1,5 @@
 """Provides the worker thread needed for processing streams."""
+
 from __future__ import annotations
 
 from collections import defaultdict, deque
@@ -12,6 +13,10 @@ from threading import Event
 from typing import Any, Self, cast
 
 import av
+import av.audio
+import av.container
+import av.stream
+import av.video
 
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
@@ -46,6 +51,14 @@ class StreamWorkerError(Exception):
     """An exception thrown while processing a stream."""
 
 
+def redact_av_error_string(err: av.FFmpegError) -> str:
+    """Return an error string with credentials redacted from the url."""
+    parts = [str(err.type), err.strerror]
+    if err.filename is not None:
+        parts.append(redact_credentials(err.filename))
+    return ", ".join(parts)
+
+
 class StreamEndedError(StreamWorkerError):
     """Raised when the stream is complete, exposed for facilitating testing."""
 
@@ -67,9 +80,9 @@ class StreamState:
         """Initialize StreamState."""
         self._stream_id: int = 0
         self.hass = hass
-        self._outputs_callback: Callable[
-            [], Mapping[str, StreamOutput]
-        ] = outputs_callback
+        self._outputs_callback: Callable[[], Mapping[str, StreamOutput]] = (
+            outputs_callback
+        )
         # sequence gets incremented before the first segment so the first segment
         # has a sequence number of 0.
         self._sequence = -1
@@ -114,30 +127,31 @@ class StreamState:
 class StreamMuxer:
     """StreamMuxer re-packages video/audio packets for output."""
 
+    _segment_start_dts: int
+    _memory_file: BytesIO
+    _av_output: av.container.OutputContainer
+    _output_video_stream: av.video.VideoStream
+    _output_audio_stream: av.audio.AudioStream | None
+    _segment: Segment | None
+    # the following 2 member variables are used for Part formation
+    _memory_file_pos: int
+    _part_start_dts: int
+
     def __init__(
         self,
         hass: HomeAssistant,
         video_stream: av.video.VideoStream,
-        audio_stream: av.audio.stream.AudioStream | None,
+        audio_stream: av.audio.AudioStream | None,
         audio_bsf: av.BitStreamFilter | None,
         stream_state: StreamState,
         stream_settings: StreamSettings,
     ) -> None:
         """Initialize StreamMuxer."""
         self._hass = hass
-        self._segment_start_dts: int = cast(int, None)
-        self._memory_file: BytesIO = cast(BytesIO, None)
-        self._av_output: av.container.OutputContainer = None
-        self._input_video_stream: av.video.VideoStream = video_stream
-        self._input_audio_stream: av.audio.stream.AudioStream | None = audio_stream
+        self._input_video_stream = video_stream
+        self._input_audio_stream = audio_stream
         self._audio_bsf = audio_bsf
-        self._audio_bsf_context: av.BitStreamFilterContext = None
-        self._output_video_stream: av.video.VideoStream = None
-        self._output_audio_stream: av.audio.stream.AudioStream | None = None
-        self._segment: Segment | None = None
-        # the following 3 member variables are used for Part formation
-        self._memory_file_pos: int = cast(int, None)
-        self._part_start_dts: int = cast(int, None)
+        self._audio_bsf_context: av.BitStreamFilterContext | None = None
         self._part_has_keyframe = False
         self._stream_settings = stream_settings
         self._stream_state = stream_state
@@ -148,72 +162,71 @@ class StreamMuxer:
         memory_file: BytesIO,
         sequence: int,
         input_vstream: av.video.VideoStream,
-        input_astream: av.audio.stream.AudioStream | None,
+        input_astream: av.audio.AudioStream | None,
     ) -> tuple[
         av.container.OutputContainer,
         av.video.VideoStream,
-        av.audio.stream.AudioStream | None,
+        av.audio.AudioStream | None,
     ]:
         """Make a new av OutputContainer and add output streams."""
+        container_options: dict[str, str] = {
+            # Removed skip_sidx - see:
+            # https://github.com/home-assistant/core/pull/39970
+            # "cmaf" flag replaces several of the movflags used,
+            # but too recent to use for now
+            "movflags": "frag_custom+empty_moov+default_base_moof+frag_discont+negative_cts_offsets+skip_trailer+delay_moov",
+            # Sometimes the first segment begins with negative timestamps,
+            # and this setting just
+            # adjusts the timestamps in the output from that segment to start
+            # from 0. Helps from having to make some adjustments
+            # in test_durations
+            "avoid_negative_ts": "make_non_negative",
+            "fragment_index": str(sequence + 1),
+            "video_track_timescale": str(int(1 / input_vstream.time_base)),
+            # Only do extra fragmenting if we are using ll_hls
+            # Let ffmpeg do the work using frag_duration
+            # Fragment durations may exceed the 15% allowed variance but it seems ok
+            **(
+                {
+                    "movflags": "empty_moov+default_base_moof+frag_discont+negative_cts_offsets+skip_trailer+delay_moov",
+                    # Create a fragment every TARGET_PART_DURATION. The data from
+                    # each fragment is stored in a "Part" that can be combined with
+                    # the data from all the other "Part"s, plus an init section,
+                    # to reconstitute the data in a "Segment".
+                    #
+                    # The LL-HLS spec allows for a fragment's duration to be within
+                    # the range [0.85x,1.0x] of the part target duration. We use the
+                    # frag_duration option to tell ffmpeg to try to cut the
+                    # fragments when they reach frag_duration. However,
+                    # the resulting fragments can have variability in their
+                    # durations and can end up being too short or too long. With a
+                    # video track with no audio, the discrete nature of frames means
+                    # that the frame at the end of a fragment will sometimes extend
+                    # slightly beyond the desired frag_duration.
+                    #
+                    # If there are two tracks, as in the case of a video feed with
+                    # audio, there is an added wrinkle as the fragment cut seems to
+                    # be done on the first track that crosses the desired threshold,
+                    # and cutting on the audio track may also result in a shorter
+                    # video fragment than desired.
+                    #
+                    # Given this, our approach is to give ffmpeg a frag_duration
+                    # somewhere in the middle of the range, hoping that the parts
+                    # stay pretty well bounded, and we adjust the part durations
+                    # a bit in the hls metadata so that everything "looks" ok.
+                    "frag_duration": str(
+                        int(self._stream_settings.part_target_duration * 9e5)
+                    ),
+                }
+                if self._stream_settings.ll_hls
+                else {}
+            ),
+        }
         container = av.open(
             memory_file,
             mode="w",
             format=SEGMENT_CONTAINER_FORMAT,
-            container_options={
-                **{
-                    # Removed skip_sidx - see:
-                    # https://github.com/home-assistant/core/pull/39970
-                    # "cmaf" flag replaces several of the movflags used,
-                    # but too recent to use for now
-                    "movflags": "frag_custom+empty_moov+default_base_moof+frag_discont+negative_cts_offsets+skip_trailer+delay_moov",
-                    # Sometimes the first segment begins with negative timestamps,
-                    # and this setting just
-                    # adjusts the timestamps in the output from that segment to start
-                    # from 0. Helps from having to make some adjustments
-                    # in test_durations
-                    "avoid_negative_ts": "make_non_negative",
-                    "fragment_index": str(sequence + 1),
-                    "video_track_timescale": str(int(1 / input_vstream.time_base)),
-                },
-                # Only do extra fragmenting if we are using ll_hls
-                # Let ffmpeg do the work using frag_duration
-                # Fragment durations may exceed the 15% allowed variance but it seems ok
-                **(
-                    {
-                        "movflags": "empty_moov+default_base_moof+frag_discont+negative_cts_offsets+skip_trailer+delay_moov",
-                        # Create a fragment every TARGET_PART_DURATION. The data from
-                        # each fragment is stored in a "Part" that can be combined with
-                        # the data from all the other "Part"s, plus an init section,
-                        # to reconstitute the data in a "Segment".
-                        #
-                        # The LL-HLS spec allows for a fragment's duration to be within
-                        # the range [0.85x,1.0x] of the part target duration. We use the
-                        # frag_duration option to tell ffmpeg to try to cut the
-                        # fragments when they reach frag_duration. However,
-                        # the resulting fragments can have variability in their
-                        # durations and can end up being too short or too long. With a
-                        # video track with no audio, the discrete nature of frames means
-                        # that the frame at the end of a fragment will sometimes extend
-                        # slightly beyond the desired frag_duration.
-                        #
-                        # If there are two tracks, as in the case of a video feed with
-                        # audio, there is an added wrinkle as the fragment cut seems to
-                        # be done on the first track that crosses the desired threshold,
-                        # and cutting on the audio track may also result in a shorter
-                        # video fragment than desired.
-                        #
-                        # Given this, our approach is to give ffmpeg a frag_duration
-                        # somewhere in the middle of the range, hoping that the parts
-                        # stay pretty well bounded, and we adjust the part durations
-                        # a bit in the hls metadata so that everything "looks" ok.
-                        "frag_duration": str(
-                            int(self._stream_settings.part_target_duration * 9e5)
-                        ),
-                    }
-                    if self._stream_settings.ll_hls
-                    else {}
-                ),
-            },
+            container_options=container_options,
         )
         output_vstream = container.add_stream(template=input_vstream)
         # Check if audio is requested
@@ -244,7 +257,7 @@ class StreamMuxer:
             input_astream=self._input_audio_stream,
         )
         if self._output_video_stream.name == "hevc":
-            self._output_video_stream.codec_tag = "hvc1"
+            self._output_video_stream.codec_context.codec_tag = "hvc1"
 
     def mux_packet(self, packet: av.Packet) -> None:
         """Mux a packet to the appropriate output stream."""
@@ -360,12 +373,14 @@ class StreamMuxer:
                 data=self._memory_file.read(),
             ),
             (
-                segment_duration := float(
-                    (adjusted_dts - self._segment_start_dts) * packet.time_base
+                (
+                    segment_duration := float(
+                        (adjusted_dts - self._segment_start_dts) * packet.time_base
+                    )
                 )
-            )
-            if last_part
-            else 0,
+                if last_part
+                else 0
+            ),
         )
         if last_part:
             # If we've written the last part, we can close the memory_file.
@@ -386,7 +401,7 @@ class StreamMuxer:
         self._memory_file.close()
 
 
-class PeekIterator(Iterator):
+class PeekIterator(Iterator[av.Packet]):
     """An Iterator that may allow multiple passes.
 
     This may be consumed like a normal Iterator, however also supports a
@@ -416,13 +431,12 @@ class PeekIterator(Iterator):
         self._next = self._iterator.__next__
         return self._next()
 
-    def peek(self) -> Generator[av.Packet, None, None]:
+    def peek(self) -> Generator[av.Packet]:
         """Return items without consuming from the iterator."""
         # Items consumed are added to a buffer for future calls to __next__
         # or peek. First iterate over the buffer from previous calls to peek.
         self._next = self._pop_buffer
-        for packet in self._buffer:
-            yield packet
+        yield from self._buffer
         for packet in self._iterator:
             self._buffer.append(packet)
             yield packet
@@ -516,10 +530,9 @@ def stream_worker(
         del pyav_options["stimeout"]
     try:
         container = av.open(source, options=pyav_options, timeout=SOURCE_TIMEOUT)
-    except av.AVError as err:
+    except av.FFmpegError as err:
         raise StreamWorkerError(
-            f"Error opening stream ({err.type}, {err.strerror})"
-            f" {redact_credentials(str(source))}"
+            f"Error opening stream ({redact_av_error_string(err)})"
         ) from err
     try:
         video_stream = container.streams.video[0]
@@ -550,7 +563,7 @@ def stream_worker(
 
     dts_validator = TimestampValidator(
         int(1 / video_stream.time_base),
-        1 / audio_stream.time_base if audio_stream else 1,
+        int(1 / audio_stream.time_base) if audio_stream else 1,
     )
     container_packets = PeekIterator(
         filter(dts_validator.is_valid, container.demux((video_stream, audio_stream)))
@@ -585,16 +598,16 @@ def stream_worker(
         # dts. Use "or 1" to deal with this.
         start_dts = next_video_packet.dts - (next_video_packet.duration or 1)
         first_keyframe.dts = first_keyframe.pts = start_dts
-    except StreamWorkerError as ex:
+    except StreamWorkerError:
         container.close()
-        raise ex
+        raise
     except StopIteration as ex:
         container.close()
         raise StreamEndedError("Stream ended; no additional packets") from ex
-    except av.AVError as ex:
+    except av.FFmpegError as ex:
         container.close()
         raise StreamWorkerError(
-            "Error demuxing stream while finding first packet: %s" % str(ex)
+            f"Error demuxing stream while finding first packet ({redact_av_error_string(ex)})"
         ) from ex
 
     muxer = StreamMuxer(
@@ -614,12 +627,14 @@ def stream_worker(
         while not quit_event.is_set():
             try:
                 packet = next(container_packets)
-            except StreamWorkerError as ex:
-                raise ex
+            except StreamWorkerError:
+                raise
             except StopIteration as ex:
                 raise StreamEndedError("Stream ended; no additional packets") from ex
-            except av.AVError as ex:
-                raise StreamWorkerError("Error demuxing stream: %s" % str(ex)) from ex
+            except av.FFmpegError as ex:
+                raise StreamWorkerError(
+                    f"Error demuxing stream ({redact_av_error_string(ex)})"
+                ) from ex
 
             muxer.mux_packet(packet)
 

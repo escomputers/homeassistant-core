@@ -1,4 +1,5 @@
 """Support for Lutron lights."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -6,7 +7,14 @@ from typing import Any
 
 from pylutron import Output
 
-from homeassistant.components.light import ATTR_BRIGHTNESS, ColorMode, LightEntity
+from homeassistant.components.light import (
+    ATTR_BRIGHTNESS,
+    ATTR_FLASH,
+    ATTR_TRANSITION,
+    ColorMode,
+    LightEntity,
+    LightEntityFeature,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -26,11 +34,12 @@ async def async_setup_entry(
     light entities.
     """
     entry_data: LutronData = hass.data[DOMAIN][config_entry.entry_id]
+
     async_add_entities(
-        [
+        (
             LutronLight(area_name, device, entry_data.client)
             for area_name, device in entry_data.lights
-        ],
+        ),
         True,
     )
 
@@ -50,24 +59,34 @@ class LutronLight(LutronDevice, LightEntity):
 
     _attr_color_mode = ColorMode.BRIGHTNESS
     _attr_supported_color_modes = {ColorMode.BRIGHTNESS}
+    _attr_supported_features = LightEntityFeature.TRANSITION | LightEntityFeature.FLASH
     _lutron_device: Output
     _prev_brightness: int | None = None
     _attr_name = None
 
     def turn_on(self, **kwargs: Any) -> None:
         """Turn the light on."""
-        if ATTR_BRIGHTNESS in kwargs and self._lutron_device.is_dimmable:
-            brightness = kwargs[ATTR_BRIGHTNESS]
-        elif self._prev_brightness == 0:
-            brightness = 255 / 2
+        if flash := kwargs.get(ATTR_FLASH):
+            self._lutron_device.flash(0.5 if flash == "short" else 1.5)
         else:
-            brightness = self._prev_brightness
-        self._prev_brightness = brightness
-        self._lutron_device.level = to_lutron_level(brightness)
+            if ATTR_BRIGHTNESS in kwargs and self._lutron_device.is_dimmable:
+                brightness = kwargs[ATTR_BRIGHTNESS]
+            elif self._prev_brightness == 0:
+                brightness = 255 / 2
+            else:
+                brightness = self._prev_brightness
+            self._prev_brightness = brightness
+            args = {"new_level": to_lutron_level(brightness)}
+            if ATTR_TRANSITION in kwargs:
+                args["fade_time_seconds"] = kwargs[ATTR_TRANSITION]
+            self._lutron_device.set_level(**args)
 
     def turn_off(self, **kwargs: Any) -> None:
         """Turn the light off."""
-        self._lutron_device.level = 0
+        args = {"new_level": 0}
+        if ATTR_TRANSITION in kwargs:
+            args["fade_time_seconds"] = kwargs[ATTR_TRANSITION]
+        self._lutron_device.set_level(**args)
 
     @property
     def extra_state_attributes(self) -> Mapping[str, Any] | None:
@@ -76,7 +95,7 @@ class LutronLight(LutronDevice, LightEntity):
 
     def _request_state(self) -> None:
         """Request the state from the device."""
-        self._lutron_device.level  # pylint: disable=pointless-statement
+        _ = self._lutron_device.level
 
     def _update_attrs(self) -> None:
         """Update the state attributes."""

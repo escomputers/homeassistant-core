@@ -9,8 +9,9 @@ from homeassistant.components.lock import (
     DOMAIN as LOCK_DOMAIN,
     SERVICE_LOCK,
     SERVICE_UNLOCK,
+    LockState,
 )
-from homeassistant.const import ATTR_ENTITY_ID, STATE_LOCKED, STATE_UNLOCKED, Platform
+from homeassistant.const import ATTR_ENTITY_ID, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
@@ -27,9 +28,8 @@ async def test_locks(
 
     assert_entities(hass, entry.entry_id, entity_registry, snapshot)
 
-    entity_id = "lock.test_lock"
-
     # Test lock set value functions
+    entity_id = "lock.test_lock"
     with patch("homeassistant.components.tessie.lock.lock") as mock_run:
         await hass.services.async_call(
             LOCK_DOMAIN,
@@ -38,7 +38,7 @@ async def test_locks(
             blocking=True,
         )
         mock_run.assert_called_once()
-    assert hass.states.get(entity_id).state == STATE_LOCKED
+    assert hass.states.get(entity_id).state == LockState.LOCKED
 
     with patch("homeassistant.components.tessie.lock.unlock") as mock_run:
         await hass.services.async_call(
@@ -47,8 +47,8 @@ async def test_locks(
             {ATTR_ENTITY_ID: [entity_id]},
             blocking=True,
         )
-
         mock_run.assert_called_once()
+    assert hass.states.get(entity_id).state == LockState.UNLOCKED
 
     # Test charge cable lock set value functions
     entity_id = "lock.test_charge_cable_lock"
@@ -69,5 +69,5 @@ async def test_locks(
             {ATTR_ENTITY_ID: [entity_id]},
             blocking=True,
         )
-        assert hass.states.get(entity_id).state == STATE_UNLOCKED
+        assert hass.states.get(entity_id).state == LockState.UNLOCKED
         mock_run.assert_called_once()
