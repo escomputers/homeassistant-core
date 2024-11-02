@@ -13,14 +13,16 @@ to ensure valid authentication during API calls. Key functionalities include:
 import json
 import logging
 
-import requests
+from aiohttp import ClientSession
 
 from .const import AUTH_DOMAIN, HEADERS, HTTP_TIMEOUT, ID
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def login(user_id: str, user_pass: str, secret_hash: str) -> str:
+async def login(
+    user_id: str, user_pass: str, secret_hash: str, async_session: ClientSession
+) -> str:
     """Log into Cognito to retrieve new tokens."""
 
     _LOGGER.info("Logging in")
@@ -34,14 +36,15 @@ def login(user_id: str, user_pass: str, secret_hash: str) -> str:
         },
     }
 
-    response = requests.post(
+    async with async_session.post(
         AUTH_DOMAIN,
         headers=HEADERS,
         json=login_payload,
         timeout=HTTP_TIMEOUT,
-    )
-    response.raise_for_status()
-    obj = json.loads(response.text)
+    ) as response:
+        response.raise_for_status()
+        response_text = await response.text()
+        obj = json.loads(response_text)
 
     id_tok = obj["AuthenticationResult"]["IdToken"]
 
@@ -49,8 +52,10 @@ def login(user_id: str, user_pass: str, secret_hash: str) -> str:
     return id_tok
 
 
-def get_id_token(usr_id: str, usr_pwd: str, scr_hash: str) -> str:
+async def get_id_token(
+    usr_id: str, usr_pwd: str, scr_hash: str, session: ClientSession
+) -> str:
     """Retrieve a valid ID Token, refresh or re-authenticate if necessary."""
     _LOGGER.info("Retrieving ID token")
-    id_token = login(usr_id, usr_pwd, scr_hash)
+    id_token = await login(usr_id, usr_pwd, scr_hash, session)
     return id_token
