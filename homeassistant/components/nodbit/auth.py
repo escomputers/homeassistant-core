@@ -36,10 +36,6 @@ id_token_expiry_time = None
 refresh_token_cache = None
 refresh_token_expiry_time = None
 
-CONF_USER_ID = "user_id"
-CONF_USER_PWD = "user_pwd"
-CONF_KEY = "key"
-
 
 def refresh_id_token() -> None:
     """Use the Refresh Token to obtain a new ID Token.
@@ -146,7 +142,44 @@ def login() -> None:
             raise ConnectionError
 
 
-def get_id_token() -> str:
+def login2(user_id: str, user_pass: str, secret_hash: str) -> None:
+    """Log into Cognito to retrieve new tokens and update the cache."""
+    id_token = ""
+
+    _LOGGER.info("Logging in")
+    login_payload = {
+        "AuthFlow": "USER_PASSWORD_AUTH",
+        "ClientId": ID,
+        "AuthParameters": {
+            "USERNAME": user_id,
+            "PASSWORD": user_pass,
+            "SECRET_HASH": secret_hash,
+        },
+    }
+
+    response = requests.post(
+        AUTH_DOMAIN,
+        headers=HEADERS,
+        json=login_payload,
+        timeout=HTTP_TIMEOUT,
+    )
+    response.raise_for_status()
+    obj = json.loads(response.text)
+
+    id_token = obj["AuthenticationResult"]["IdToken"]
+
+    _LOGGER.info("Logged in successfully. Tokens saved in cache")
+    return id_token
+
+
+def get_id_token(usr_id: str, usr_pwd: str, scr_hash: str) -> str:
+    """Retrieve a valid ID Token, refresh or re-authenticate if necessary."""
+    _LOGGER.info("Retrieving ID token")
+    token = login2(usr_id, usr_pwd, scr_hash)
+    return token
+
+
+def get_id_token2() -> str:
     """Retrieve a valid ID Token, refresh or re-authenticate if necessary."""
     global \
         id_token_cache, \
