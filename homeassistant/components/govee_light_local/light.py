@@ -13,27 +13,27 @@ from homeassistant.components.light import (
     ATTR_RGB_COLOR,
     ColorMode,
     LightEntity,
+    filter_supported_color_modes,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN, MANUFACTURER
-from .coordinator import GoveeLocalApiCoordinator
+from .coordinator import GoveeLocalApiCoordinator, GoveeLocalConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    config_entry: GoveeLocalConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Govee light setup."""
 
-    coordinator: GoveeLocalApiCoordinator = hass.data[DOMAIN][config_entry.entry_id]
+    coordinator = config_entry.runtime_data
 
     def discovery_callback(device: GoveeDevice, is_new: bool) -> bool:
         if is_new:
@@ -52,6 +52,8 @@ class GoveeLight(CoordinatorEntity[GoveeLocalApiCoordinator], LightEntity):
 
     _attr_has_entity_name = True
     _attr_name = None
+    _attr_supported_color_modes: set[ColorMode]
+    _fixed_color_mode: ColorMode | None = None
 
     def __init__(
         self,
@@ -67,7 +69,7 @@ class GoveeLight(CoordinatorEntity[GoveeLocalApiCoordinator], LightEntity):
         self._attr_unique_id = device.fingerprint
 
         capabilities = device.capabilities
-        color_modes = set()
+        color_modes = {ColorMode.ONOFF}
         if capabilities:
             if GoveeLightCapability.COLOR_RGB in capabilities:
                 color_modes.add(ColorMode.RGB)
@@ -77,10 +79,11 @@ class GoveeLight(CoordinatorEntity[GoveeLocalApiCoordinator], LightEntity):
                 self._attr_min_color_temp_kelvin = 2000
             if GoveeLightCapability.BRIGHTNESS in capabilities:
                 color_modes.add(ColorMode.BRIGHTNESS)
-        else:
-            color_modes.add(ColorMode.ONOFF)
 
-        self._attr_supported_color_modes = color_modes
+        self._attr_supported_color_modes = filter_supported_color_modes(color_modes)
+        if len(self._attr_supported_color_modes) == 1:
+            # If the light supports only a single color mode, set it now
+            self._fixed_color_mode = next(iter(self._attr_supported_color_modes))
 
         self._attr_device_info = DeviceInfo(
             identifiers={
@@ -89,8 +92,8 @@ class GoveeLight(CoordinatorEntity[GoveeLocalApiCoordinator], LightEntity):
             },
             name=device.sku,
             manufacturer=MANUFACTURER,
-            model=device.sku,
-            connections={(CONNECTION_NETWORK_MAC, device.fingerprint)},
+            model_id=device.sku,
+            serial_number=device.fingerprint,
         )
 
     @property
@@ -116,20 +119,18 @@ class GoveeLight(CoordinatorEntity[GoveeLocalApiCoordinator], LightEntity):
     @property
     def color_mode(self) -> ColorMode | str | None:
         """Return the color mode."""
+        if self._fixed_color_mode:
+            # The light supports only a single color mode, return it
+            return self._fixed_color_mode
+
+        # The light supports both color temperature and RGB, determine which
+        # mode the light is in
         if (
             self._device.temperature_color is not None
             and self._device.temperature_color > 0
         ):
             return ColorMode.COLOR_TEMP
-        if self._device.rgb_color is not None and any(self._device.rgb_color):
-            return ColorMode.RGB
-
-        if (
-            self._attr_supported_color_modes
-            and ColorMode.BRIGHTNESS in self._attr_supported_color_modes
-        ):
-            return ColorMode.BRIGHTNESS
-        return ColorMode.ONOFF
+        return ColorMode.RGB
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the device on."""
