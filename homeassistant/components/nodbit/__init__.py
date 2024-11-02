@@ -6,6 +6,7 @@ from homeassistant.core import HomeAssistant
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
+
 from .const import NODBIT_DOMAIN
 
 CONF_USER_ID = "user_id"
@@ -28,6 +29,7 @@ CONFIG_SCHEMA = vol.Schema(
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Twilio component."""
+
     if NODBIT_DOMAIN not in config:
         return True
 
