@@ -55,9 +55,7 @@ async def refresh_id_token(
         obj = json.loads(response_text)
 
         id_tok = obj["AuthenticationResult"]["IdToken"]
-        new_id_token_expiry_time = (
-            time.time() + IDTOKEN_LIFETIME
-        )  # New ID Token expiry in 1 hour
+        new_id_token_expiry_time = time.time() + IDTOKEN_LIFETIME
 
         return id_tok, new_id_token_expiry_time
 
@@ -120,7 +118,7 @@ async def get_id_token(
 
     # No persistent cache found
     if existing_auth_data is None:
-        _LOGGER.info("No cache found. Logging in")
+        _LOGGER.info("No cache found")
         auth_data = await login(usr_id, usr_pwd, scr_hash, session, store)
 
         id_token_data = auth_data.get("id_token")
@@ -159,8 +157,7 @@ async def get_id_token(
                 )
 
                 # Update cached values
-                existing_auth_data["id_token"] = new_id_token
-                existing_auth_data["expiration"] = new_id_token_expiration
+                existing_auth_data["id_token"] = new_id_token, new_id_token_expiration
 
                 await store.async_save(existing_auth_data)
 

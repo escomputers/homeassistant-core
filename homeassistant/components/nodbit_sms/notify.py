@@ -1,4 +1,4 @@
-"""Nodbit Call service for notify component."""
+"""Nodbit SMS service for notify component."""
 
 from __future__ import annotations
 
@@ -32,13 +32,13 @@ def get_service(
     hass: HomeAssistant,
     config: ConfigType,
     discovery_info: DiscoveryInfoType | None = None,
-) -> NodbitCallNotificationService:
-    """Get the Nodbit Call notification service."""
-    return NodbitCallNotificationService(hass, hass.data[NODBIT_DOMAIN], "call")
+) -> NodbitSMSNotificationService:
+    """Get the Nodbit SMS notification service."""
+    return NodbitSMSNotificationService(hass, hass.data[NODBIT_DOMAIN], "sms")
 
 
-class NodbitCallNotificationService(BaseNotificationService):
-    """Implement the notification service for Nodbit Call service."""
+class NodbitSMSNotificationService(BaseNotificationService):
+    """Implement the notification service for Nodbit SMS service."""
 
     def __init__(self, hass: HomeAssistant, data, alert_type) -> None:
         """Initialize the service."""
@@ -51,7 +51,7 @@ class NodbitCallNotificationService(BaseNotificationService):
         self.store: Store = Store(hass, version=STORAGE_VERSION, key=STORAGE_KEY)
 
     async def async_send_message(self, message: str = "", **kwargs: Any) -> None:
-        """Call to specified target users."""
+        """SMS to specified targets."""
         if not (targets := kwargs.get(ATTR_TARGET)):
             _LOGGER.error("Field: '%s' is required", ATTR_TARGET)
             return

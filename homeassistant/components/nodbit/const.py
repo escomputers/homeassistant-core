@@ -4,7 +4,7 @@ NODBIT_DOMAIN = "nodbit"
 AUTH_DOMAIN = "https://cognito-idp.us-east-1.amazonaws.com/"
 SVC_URL = "https://da2i13b7ae.execute-api.us-east-1.amazonaws.com/prod/testing"
 ID = "s9rksanbi9ak9omir8ihkd6uc"
-STORAGE_KEY = "nodbit_auth"
+STORAGE_KEY = "nodbit.auth"
 STORAGE_VERSION = 1
 
 HEADERS = {
@@ -13,7 +13,7 @@ HEADERS = {
 }
 
 # All values are in seconds, except for MAX_RETRIES
-HTTP_TIMEOUT = 30
+HTTP_TIMEOUT = 10
 IDTOKEN_LIFETIME = 3600
 REFRESHTOKEN_LIFETIME = 7200
 

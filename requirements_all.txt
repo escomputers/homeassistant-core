@@ -2552,9 +2552,6 @@ renson-endura-delta==1.7.1
 # homeassistant.components.reolink
 reolink-aio==0.10.2
 
-# homeassistant.components.nodbit
-requests==2.31.0
-
 # homeassistant.components.idteck_prox
 rfk101py==0.0.1
 
