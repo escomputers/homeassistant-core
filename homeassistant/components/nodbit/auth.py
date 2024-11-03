@@ -1,6 +1,6 @@
-"""Authentication and Token Management for Nodbit Integration.
+"""Authentication for Nodbit Integration.
 
-This module handles the authentication and token management required to interact with Nodbit API.
+This module handles the authentication required to interact with Nodbit API.
 It provides functions for logging, refreshing tokens and managing token caching
 to ensure valid authentication during API calls. Key functionalities include:
 
@@ -33,7 +33,7 @@ timeout = ClientTimeout(total=HTTP_TIMEOUT)
 async def refresh_id_token(
     refresh_tok: str, secret_hash: str, async_session: ClientSession
 ) -> tuple[str, float]:
-    """Use the Refresh Token to obtain a new ID Token."""
+    """Refresh ID token using the Refresh Token."""
 
     refresh_payload = {
         "AuthFlow": "REFRESH_TOKEN_AUTH",
@@ -115,27 +115,54 @@ async def get_id_token(
     """Retrieve a valid ID Token, refresh or re-authenticate if necessary."""
     _LOGGER.info("Retrieving ID token")
 
+    # Try to retrieve existing authentication data
     existing_auth_data = await store.async_load()
 
+    # No persistent cache found
     if existing_auth_data is None:
-        id_token = await login(usr_id, usr_pwd, scr_hash, session, store)
+        _LOGGER.info("No cache found. Logging in")
+        auth_data = await login(usr_id, usr_pwd, scr_hash, session, store)
+
+        id_token_data = auth_data.get("id_token")
+        if id_token_data is not None:
+            id_token, _ = id_token_data
+        else:
+            _LOGGER.error("Cannot get tokens after login")
+    # Cache found
     else:
+        _LOGGER.info("Cache data found, checking tokens expiration")
         id_token, id_token_expiration = existing_auth_data.get("id_token")
         refresh_token, refresh_token_expiration = existing_auth_data.get(
             "refresh_token"
         )
 
         current_time = time.time()
+        # Check if ID token has expired
         if current_time >= id_token_expiration - 600:
+            # ID token expired, check Refresh token
             if current_time >= refresh_token_expiration:
                 _LOGGER.info("Both tokens expired. Re-authenticating")
-                id_token = await login(usr_id, usr_pwd, scr_hash, session, store)
+                auth_data = await login(usr_id, usr_pwd, scr_hash, session, store)
+
+                id_token_data = auth_data.get("id_token")
+                if id_token_data is not None:
+                    id_token, _ = id_token_data
+                else:
+                    _LOGGER.error("Cannot get tokens after login")
+            # ID token expired, but Refresh token is valid
             else:
                 _LOGGER.info(
                     "ID Token is about to expire. Refreshing using Refresh Token"
                 )
-                # id_token, new_id_token_expiration = await refresh_id_token(
-                id_token, _ = await refresh_id_token(refresh_token, scr_hash, session)
+                new_id_token, new_id_token_expiration = await refresh_id_token(
+                    refresh_token, scr_hash, session
+                )
 
-                # ADD LOGIC TO SAVE NEW ID TOKEN AND ITS EXPIRATION
+                # Update cached values
+                existing_auth_data["id_token"] = new_id_token
+                existing_auth_data["expiration"] = new_id_token_expiration
+
+                await store.async_save(existing_auth_data)
+
+    _LOGGER.info("Retrieved valid ID token")
     return id_token
