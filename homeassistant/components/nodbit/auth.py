@@ -15,6 +15,7 @@ import time
 
 from aiohttp import ClientSession, ClientTimeout
 
+# import backoff
 from homeassistant.helpers.storage import Store
 
 from .const import (
@@ -60,6 +61,13 @@ async def refresh_id_token(
         return id_tok, new_id_token_expiry_time
 
 
+# @backoff.on_exception(
+#     backoff.expo,  # Backoff esponenziale
+#     max_tries=4,  # Numero massimo di tentativi
+#     base=2,
+#     factor=1,
+#     jitter=backoff.full_jitter,  # Aggiunge variazione casuale al backoff
+# )
 async def login(
     user_id: str,
     user_pass: str,
@@ -152,12 +160,12 @@ async def get_id_token(
                 _LOGGER.info(
                     "ID Token is about to expire. Refreshing using Refresh Token"
                 )
-                new_id_token, new_id_token_expiration = await refresh_id_token(
+                id_token, new_id_token_expiration = await refresh_id_token(
                     refresh_token, scr_hash, session
                 )
 
                 # Update cached values
-                existing_auth_data["id_token"] = new_id_token, new_id_token_expiration
+                existing_auth_data["id_token"] = id_token, new_id_token_expiration
 
                 await store.async_save(existing_auth_data)
 
