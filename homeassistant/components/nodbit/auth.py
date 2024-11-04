@@ -5,8 +5,8 @@ It provides functions for logging, refreshing tokens and managing token caching
 to ensure valid authentication during API calls. Key functionalities include:
 
 - `login`: Authenticates users using their credentials and retrieves ID and Refresh tokens.
-- `refresh_id_token`: Uses the Refresh Token to obtain a new ID Token, extending the session without re-authenticating.
-- `get_id_token`: Manages the retrieval of a valid ID Token, handling re-authentication or refresh as needed.
+- `refresh_id_token`: Uses the Refresh token to obtain a new ID token, extending the session without re-authenticating.
+- `get_id_token`: Manages the retrieval of a valid ID token, handling re-authentication or refresh as needed.
 """
 
 import json
@@ -34,7 +34,7 @@ timeout = ClientTimeout(total=HTTP_TIMEOUT)
 async def refresh_id_token(
     refresh_tok: str, secret_hash: str, async_session: ClientSession
 ) -> tuple[str, float]:
-    """Refresh ID token using the Refresh Token."""
+    """Refresh ID token using the Refresh token."""
 
     refresh_payload = {
         "AuthFlow": "REFRESH_TOKEN_AUTH",
@@ -97,7 +97,7 @@ async def login(
         response.raise_for_status()
         response_text = await response.text()
         obj = json.loads(response_text)
-
+    _LOGGER.info(msg=obj)
     id_tok = obj["AuthenticationResult"]["IdToken"]
     refresh_tok = obj["AuthenticationResult"]["RefreshToken"]
 
@@ -118,7 +118,7 @@ async def login(
 async def get_id_token(
     usr_id: str, usr_pwd: str, scr_hash: str, session: ClientSession, store: Store
 ) -> str:
-    """Retrieve a valid ID Token, refresh or re-authenticate if necessary."""
+    """Retrieve a valid ID token, refresh or re-authenticate if necessary."""
     _LOGGER.info("Retrieving ID token")
 
     # Try to retrieve existing authentication data
@@ -157,9 +157,7 @@ async def get_id_token(
                     _LOGGER.error("Cannot get tokens after login")
             # ID token expired, but Refresh token is valid
             else:
-                _LOGGER.info(
-                    "ID Token is about to expire. Refreshing using Refresh Token"
-                )
+                _LOGGER.info("ID token is not valid. Refreshing using Refresh token")
                 id_token, new_id_token_expiration = await refresh_id_token(
                     refresh_token, scr_hash, session
                 )
