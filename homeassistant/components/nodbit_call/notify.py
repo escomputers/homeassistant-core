@@ -79,7 +79,27 @@ class NodbitCallNotificationService(BaseNotificationService):
         async with self.session.post(
             SVC_URL, headers=headers, json=data, timeout=timeout
         ) as resp:
-            resp.raise_for_status()
+            if resp.status != 200:
+                # Send a persistent notification for missing executions
+                await self.hass.services.async_call(
+                    "persistent_notification",
+                    "create",
+                    {
+                        "message": "Cannot place call, check system logs for more details",
+                        "title": "Nodbit notification",
+                    },
+                )
+
+                raise HomeAssistantError(
+                    translation_domain=NODBIT_DOMAIN,
+                    translation_key="http_response_error",
+                    translation_placeholders={
+                        "status_code": str(resp.status),
+                        "response_reason": str(resp.reason),
+                        "response_body": await resp.text(),
+                    },
+                )
+
             response_text = await resp.text()
             obj = json.loads(response_text)
             _LOGGER.info(msg=obj)

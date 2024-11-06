@@ -2,6 +2,9 @@
   "exceptions": {
     "missing_field": {
       "message": "Field {field} is required"
+    },
+    "http_response_error": {
+      "message": "Cannot send notification. HTTP {status_code} {response_reason}. {response_body}"
     }
   }
 }

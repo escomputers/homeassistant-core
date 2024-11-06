@@ -97,7 +97,7 @@ async def login(
         response.raise_for_status()
         response_text = await response.text()
         obj = json.loads(response_text)
-    _LOGGER.info(msg=obj)
+
     id_tok = obj["AuthenticationResult"]["IdToken"]
     refresh_tok = obj["AuthenticationResult"]["RefreshToken"]
 
