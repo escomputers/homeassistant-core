@@ -1,1 +1,1 @@
-"""nodbit_sms component."""
+"""Nodbit SMS component."""

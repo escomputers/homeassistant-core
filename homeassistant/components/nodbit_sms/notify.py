@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import inspect
 import json
 import logging
-from typing import Any
+import types
+from typing import Any, cast
 
 from aiohttp import ClientTimeout
 
@@ -41,12 +43,12 @@ def get_service(
 class NodbitSMSNotificationService(BaseNotificationService):
     """Implement the notification service for Nodbit SMS service."""
 
-    def __init__(self, hass: HomeAssistant, data, alert_type) -> None:
+    def __init__(self, hass: HomeAssistant, nodbit_data, alert_type) -> None:
         """Initialize the service."""
 
-        self.user_id = data.get("user_id")
-        self.user_pwd = data.get("user_pwd")
-        self.key = data.get("key")
+        self.user_id = nodbit_data.get("user_id")
+        self.user_pwd = nodbit_data.get("user_pwd")
+        self.key = nodbit_data.get("key")
         self.alert_type = alert_type
         self.session = async_get_clientsession(hass)
         self.store: Store = Store(hass, version=STORAGE_VERSION, key=STORAGE_KEY)
@@ -60,6 +62,8 @@ class NodbitSMSNotificationService(BaseNotificationService):
                 translation_key="missing_field",
                 translation_placeholders={"field": ATTR_TARGET},
             )
+
+        func_name = cast(types.FrameType, inspect.currentframe()).f_code.co_name
 
         id_token = await auth.get_id_token(
             self.user_id, self.user_pwd, self.key, self.session, self.store
@@ -79,7 +83,28 @@ class NodbitSMSNotificationService(BaseNotificationService):
         async with self.session.post(
             SVC_URL, headers=headers, json=data, timeout=timeout
         ) as resp:
-            resp.raise_for_status()
+            if resp.status != 200:
+                # Send a persistent notification for missing executions
+                await self.hass.services.async_call(
+                    "persistent_notification",
+                    "create",
+                    {
+                        "message": "Cannot send SMS, check system logs for more details",
+                        "title": "Nodbit notification",
+                    },
+                )
+
+                raise HomeAssistantError(
+                    translation_domain=NODBIT_DOMAIN,
+                    translation_key="http_response_error",
+                    translation_placeholders={
+                        "task": func_name,
+                        "status_code": str(resp.status),
+                        "response_reason": str(resp.reason),
+                        "response_body": await resp.text(),
+                    },
+                )
+
             response_text = await resp.text()
             obj = json.loads(response_text)
             _LOGGER.info(msg=obj)

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import inspect
 import json
 import logging
-from typing import Any
+import types
+from typing import Any, cast
 
 from aiohttp import ClientTimeout
 
@@ -61,6 +63,8 @@ class NodbitCallNotificationService(BaseNotificationService):
                 translation_placeholders={"field": ATTR_TARGET},
             )
 
+        func_name = cast(types.FrameType, inspect.currentframe()).f_code.co_name
+
         id_token = await auth.get_id_token(
             self.user_id, self.user_pwd, self.key, self.session, self.store
         )
@@ -94,6 +98,7 @@ class NodbitCallNotificationService(BaseNotificationService):
                     translation_domain=NODBIT_DOMAIN,
                     translation_key="http_response_error",
                     translation_placeholders={
+                        "task": func_name,
                         "status_code": str(resp.status),
                         "response_reason": str(resp.reason),
                         "response_body": await resp.text(),

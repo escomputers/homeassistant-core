@@ -4,7 +4,10 @@
       "message": "Field {field} is required"
     },
     "http_response_error": {
-      "message": "Cannot send notification. HTTP {status_code} {response_reason}. {response_body}"
+      "message": "Task: {task} - HTTP {status_code} {response_reason} - {response_body}"
+    },
+    "no_token_after_login": {
+      "message": "Cannot get ID token after login"
     }
   }
 }

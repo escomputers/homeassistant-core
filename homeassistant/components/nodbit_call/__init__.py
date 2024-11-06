@@ -1,1 +1,1 @@
-"""nodbit_call component."""
+"""Nodbit Call component."""
