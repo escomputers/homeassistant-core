@@ -1278,7 +1278,13 @@ class ConfigEntriesFlowManager(
         # a single config entry, but which already has an entry
         if (
             source not in {SOURCE_IGNORE, SOURCE_REAUTH, SOURCE_RECONFIGURE}
-            and self.config_entries.async_has_entries(handler, include_ignore=False)
+            and (
+                self.config_entries.async_has_entries(handler, include_ignore=False)
+                or (
+                    self.config_entries.async_has_entries(handler, include_ignore=True)
+                    and source != SOURCE_USER
+                )
+            )
             and await _support_single_config_entry_only(self.hass, handler)
         ):
             return ConfigFlowResult(
@@ -1457,6 +1463,7 @@ class ConfigEntriesFlowManager(
                 or progress_unique_id == DEFAULT_DISCOVERY_UNIQUE_ID
             ):
                 self.async_abort(progress_flow_id)
+                continue
 
             # Abort any flows in progress for the same handler
             # when integration allows only one config entry
@@ -3127,6 +3134,12 @@ class OptionsFlowWithConfigEntry(OptionsFlow):
         """Initialize options flow."""
         self._config_entry = config_entry
         self._options = deepcopy(dict(config_entry.options))
+        report(
+            "inherits from OptionsFlowWithConfigEntry, which is deprecated "
+            "and will stop working in 2025.12",
+            error_if_integration=False,
+            error_if_core=True,
+        )
 
     @property
     def options(self) -> dict[str, Any]:

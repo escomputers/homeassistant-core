@@ -4812,6 +4812,7 @@ async def test_reauth_reconfigure_missing_entry(
 
 
 @pytest.mark.usefixtures("mock_integration_frame")
+@patch.object(frame, "_REPORTED_INTEGRATIONS", set())
 @pytest.mark.parametrize(
     "source", [config_entries.SOURCE_REAUTH, config_entries.SOURCE_RECONFIGURE]
 )
@@ -5039,15 +5040,21 @@ async def test_async_wait_component_startup(hass: HomeAssistant) -> None:
     assert "test" in hass.config.components
 
 
-async def test_options_flow_options_not_mutated() -> None:
+@pytest.mark.usefixtures("mock_integration_frame")
+@patch.object(frame, "_REPORTED_INTEGRATIONS", set())
+async def test_options_flow_with_config_entry(caplog: pytest.LogCaptureFixture) -> None:
     """Test that OptionsFlowWithConfigEntry doesn't mutate entry options."""
     entry = MockConfigEntry(
-        domain="test",
+        domain="hue",
         data={"first": True},
         options={"sub_dict": {"1": "one"}, "sub_list": ["one"]},
     )
 
     options_flow = config_entries.OptionsFlowWithConfigEntry(entry)
+    assert (
+        "Detected that integration 'hue' inherits from OptionsFlowWithConfigEntry,"
+        " which is deprecated and will stop working in 2025.12" in caplog.text
+    )
 
     options_flow._options["sub_dict"]["2"] = "two"
     options_flow._options["sub_list"].append("two")
@@ -5697,6 +5704,14 @@ async def test_starting_config_flow_on_single_config_entry(
             None,
             {"type": data_entry_flow.FlowResultType.ABORT, "reason": "not_implemented"},
         ),
+        (
+            {"source": config_entries.SOURCE_ZEROCONF},
+            None,
+            {
+                "type": data_entry_flow.FlowResultType.ABORT,
+                "reason": "single_instance_allowed",
+            },
+        ),
     ],
 )
 async def test_starting_config_flow_on_single_config_entry_2(
@@ -5811,8 +5826,20 @@ async def test_avoid_adding_second_config_entry_on_single_config_entry(
         assert result["translation_domain"] == HOMEASSISTANT_DOMAIN
 
 
+@pytest.mark.parametrize(
+    ("flow_1_unique_id", "flow_2_unique_id"),
+    [
+        (None, None),
+        ("very_unique", "very_unique"),
+        (None, config_entries.DEFAULT_DISCOVERY_UNIQUE_ID),
+        ("very_unique", config_entries.DEFAULT_DISCOVERY_UNIQUE_ID),
+    ],
+)
 async def test_in_progress_get_canceled_when_entry_is_created(
-    hass: HomeAssistant, manager: config_entries.ConfigEntries
+    hass: HomeAssistant,
+    manager: config_entries.ConfigEntries,
+    flow_1_unique_id: str | None,
+    flow_2_unique_id: str | None,
 ) -> None:
     """Test that we abort all in progress flows when a new entry is created on a single instance only integration."""
     integration = loader.Integration(
@@ -5840,6 +5867,15 @@ async def test_in_progress_get_canceled_when_entry_is_created(
             if user_input is not None:
                 return self.async_create_entry(title="Test Title", data=user_input)
 
+            await self.async_set_unique_id(flow_1_unique_id, raise_on_progress=False)
+            return self.async_show_form(step_id="user")
+
+        async def async_step_zeroconfg(self, user_input=None):
+            """Test user step."""
+            if user_input is not None:
+                return self.async_create_entry(title="Test Title", data=user_input)
+
+            await self.async_set_unique_id(flow_2_unique_id, raise_on_progress=False)
             return self.async_show_form(step_id="user")
 
     with (
