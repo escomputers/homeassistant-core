@@ -18,7 +18,6 @@ from typing import cast
 
 from aiohttp import ClientError, ClientSession, ClientTimeout
 
-# import backoff
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
@@ -104,13 +103,6 @@ async def refresh_id_token(
         return id_tok, new_id_token_expiry_time
 
 
-# @backoff.on_exception(
-#     backoff.expo,  # Backoff esponenziale
-#     max_tries=4,  # Numero massimo di tentativi
-#     base=2,
-#     factor=1,
-#     jitter=backoff.full_jitter,  # Aggiunge variazione casuale al backoff
-# )
 async def login(
     user_id: str,
     user_pass: str,
