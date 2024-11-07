@@ -19,7 +19,6 @@ from typing import cast
 from aiohttp import ClientSession, ClientTimeout
 
 # import backoff
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.storage import Store
 
 from .const import (
@@ -28,7 +27,6 @@ from .const import (
     HTTP_TIMEOUT,
     ID,
     IDTOKEN_LIFETIME,
-    NODBIT_DOMAIN,
     REFRESHTOKEN_LIFETIME,
 )
 
@@ -72,16 +70,14 @@ async def refresh_id_token(
         response_text = await response.text()
 
         if response.status != 200:
-            raise HomeAssistantError(
-                translation_domain=NODBIT_DOMAIN,
-                translation_key="http_response_error",
-                translation_placeholders={
-                    "task": func_name,
-                    "status_code": str(response.status),
-                    "response_reason": str(response.reason),
-                    "response_body": response_text,
-                },
+            _LOGGER.error(
+                "Task: %s - HTTP %s %s - %s",
+                func_name,
+                str(response.status),
+                str(response.reason),
+                response_text,
             )
+            raise ConnectionError
 
         obj = json.loads(response_text)
 
@@ -142,16 +138,14 @@ async def login(
         response_text = await response.text()
 
         if response.status != 200:
-            raise HomeAssistantError(
-                translation_domain=NODBIT_DOMAIN,
-                translation_key="http_response_error",
-                translation_placeholders={
-                    "task": func_name,
-                    "status_code": str(response.status),
-                    "response_reason": str(response.reason),
-                    "response_body": response_text,
-                },
+            _LOGGER.error(
+                "Task: %s - HTTP %s %s - %s",
+                func_name,
+                str(response.status),
+                str(response.reason),
+                response_text,
             )
+            raise ConnectionError
 
         obj = json.loads(response_text)
 
@@ -204,9 +198,8 @@ async def get_id_token(
             id_token, _ = id_token_data
         else:
             # ID token key exists, but its value is None
-            raise HomeAssistantError(
-                translation_domain=NODBIT_DOMAIN, translation_key="no_token_after_login"
-            )
+            _LOGGER.error("Cannot get ID token after login")
+            raise ValueError
     else:
         # Cache exists. Check token expiration
         _LOGGER.info("Cache found, validating tokens")
@@ -231,10 +224,8 @@ async def get_id_token(
                     id_token, _ = id_token_data
                 else:
                     # ID token key exists, but its value is None
-                    raise HomeAssistantError(
-                        translation_domain=NODBIT_DOMAIN,
-                        translation_key="no_token_after_login",
-                    )
+                    _LOGGER.error("Cannot get ID token after login")
+                    raise ValueError
             # ID token expired, but Refresh token is valid
             else:
                 _LOGGER.info("ID token is not valid. Refreshing using Refresh token")

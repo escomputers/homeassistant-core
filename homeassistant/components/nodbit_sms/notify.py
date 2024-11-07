@@ -86,6 +86,14 @@ class NodbitSMSNotificationService(BaseNotificationService):
             response_text = await resp.text()
 
             if resp.status != 200:
+                _LOGGER.error(
+                    "Task: %s - HTTP %s %s - %s",
+                    func_name,
+                    str(resp.status),
+                    str(resp.reason),
+                    response_text,
+                )
+
                 # Send a persistent notification for missing executions
                 await self.hass.services.async_call(
                     "persistent_notification",
@@ -96,16 +104,7 @@ class NodbitSMSNotificationService(BaseNotificationService):
                     },
                 )
 
-                raise HomeAssistantError(
-                    translation_domain=NODBIT_DOMAIN,
-                    translation_key="http_response_error",
-                    translation_placeholders={
-                        "task": func_name,
-                        "status_code": str(resp.status),
-                        "response_reason": str(resp.reason),
-                        "response_body": response_text,
-                    },
-                )
+                raise ConnectionError
 
             obj = json.loads(response_text)
             _LOGGER.info(msg=obj)
