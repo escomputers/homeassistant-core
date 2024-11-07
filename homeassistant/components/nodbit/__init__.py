@@ -28,6 +28,7 @@ CONFIG_SCHEMA = vol.Schema(
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Twilio component."""
+
     if NODBIT_DOMAIN not in config:
         return True
 

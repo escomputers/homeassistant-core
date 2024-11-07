@@ -15,6 +15,7 @@ import logging
 
 from aiohttp import ClientSession
 
+
 from .const import AUTH_DOMAIN, HEADERS, HTTP_TIMEOUT, ID
 
 _LOGGER = logging.getLogger(__name__)
@@ -58,4 +59,5 @@ async def get_id_token(
     """Retrieve a valid ID Token, refresh or re-authenticate if necessary."""
     _LOGGER.info("Retrieving ID token")
     id_token = await login(usr_id, usr_pwd, scr_hash, session)
+
     return id_token
