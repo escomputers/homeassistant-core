@@ -66,7 +66,7 @@ class NodbitCallNotificationService(BaseNotificationService):
         func_name = cast(types.FrameType, inspect.currentframe()).f_code.co_name
 
         id_token = await auth.get_id_token(
-            self.user_id, self.user_pwd, self.key, self.session, self.store
+            self.user_id, self.user_pwd, self.key, self.session, self.store, self.hass
         )
 
         headers = {
@@ -94,7 +94,7 @@ class NodbitCallNotificationService(BaseNotificationService):
                     response_text,
                 )
 
-                # Send a persistent notification for missing executions
+                # Send a persistent notification whenever a critical error occurs
                 await self.hass.services.async_call(
                     "persistent_notification",
                     "create",

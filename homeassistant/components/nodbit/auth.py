@@ -19,6 +19,7 @@ from typing import cast
 from aiohttp import ClientSession, ClientTimeout
 
 # import backoff
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
 from .const import (
@@ -35,7 +36,10 @@ timeout = ClientTimeout(total=HTTP_TIMEOUT)
 
 
 async def refresh_id_token(
-    refresh_tok: str, secret_hash: str, async_session: ClientSession
+    refresh_tok: str,
+    secret_hash: str,
+    async_session: ClientSession,
+    hass_obj: HomeAssistant,
 ) -> tuple[str, float]:
     """Refresh ID token using the Refresh token.
 
@@ -43,6 +47,7 @@ async def refresh_id_token(
         refresh_tok (str): The refresh token retrieved during login.
         secret_hash (str): Client-specific secret hash for authentication.
         async_session (ClientSession): The session for making HTTP requests.
+        hass_obj (HomeAssistant): HomeAssistant core object for sending persistent notifications
 
     Returns:
         tuple[str, float]: The new ID token and its expiration time (unix epoch).
@@ -77,6 +82,17 @@ async def refresh_id_token(
                 str(response.reason),
                 response_text,
             )
+
+            # Send a persistent notification whenever a critical error occurs
+            await hass_obj.services.async_call(
+                "persistent_notification",
+                "create",
+                {
+                    "message": "Cannot refresh credentials. Check system logs for more details",
+                    "title": "Nodbit notification",
+                },
+            )
+
             raise ConnectionError
 
         obj = json.loads(response_text)
@@ -101,6 +117,7 @@ async def login(
     secret_hash: str,
     async_session: ClientSession,
     store_obj: Store,
+    hass_obj: HomeAssistant,
 ) -> dict[str, tuple[str, float]]:
     """Authenticate with Nodbit API to retrieve new tokens.
 
@@ -110,6 +127,7 @@ async def login(
         secret_hash (str): Client-specific secret hash for authentication.
         async_session (ClientSession): The session for making HTTP requests.
         store_obj (Store): Persistent storage object for caching tokens.
+        hass_obj (HomeAssistant): HomeAssistant core object for sending persistent notifications
 
     Returns:
         dict[str, tuple[str, float]]: ID and Refresh tokens with their expiration times (unix epoch).
@@ -145,6 +163,17 @@ async def login(
                 str(response.reason),
                 response_text,
             )
+
+            # Send a persistent notification whenever a critical error occurs
+            await hass_obj.services.async_call(
+                "persistent_notification",
+                "create",
+                {
+                    "message": "Cannot login. Check system logs for more details",
+                    "title": "Nodbit notification",
+                },
+            )
+
             raise ConnectionError
 
         obj = json.loads(response_text)
@@ -168,7 +197,12 @@ async def login(
 
 
 async def get_id_token(
-    usr_id: str, usr_pwd: str, scr_hash: str, session: ClientSession, store: Store
+    usr_id: str,
+    usr_pwd: str,
+    scr_hash: str,
+    session: ClientSession,
+    store: Store,
+    hass: HomeAssistant,
 ) -> str:
     """Retrieve a valid ID token, refreshing or re-authenticating if necessary.
 
@@ -178,6 +212,7 @@ async def get_id_token(
         scr_hash (str): Client-specific secret hash for authentication.
         session (ClientSession): The session for making HTTP requests.
         store (Store): Persistent storage object for caching tokens.
+        hass (HomeAssistant): HomeAssistant core object for sending persistent notifications
 
     Returns:
         str: A valid ID token for authentication with Nodbit Notification API.
@@ -191,7 +226,7 @@ async def get_id_token(
     if existing_auth_data is None:
         # No cached data. Perform login
         _LOGGER.info("No cache found, performing login")
-        auth_data = await login(usr_id, usr_pwd, scr_hash, session, store)
+        auth_data = await login(usr_id, usr_pwd, scr_hash, session, store, hass)
 
         id_token_data = auth_data.get("id_token")
         if id_token_data is not None:
@@ -217,7 +252,7 @@ async def get_id_token(
             # ID token expired. Check Refresh token
             if current_time >= refresh_token_expiration:
                 _LOGGER.info("Both tokens expired. Re-authenticating")
-                auth_data = await login(usr_id, usr_pwd, scr_hash, session, store)
+                auth_data = await login(usr_id, usr_pwd, scr_hash, session, store, hass)
 
                 id_token_data = auth_data.get("id_token")
                 if id_token_data is not None:
@@ -230,7 +265,7 @@ async def get_id_token(
             else:
                 _LOGGER.info("ID token is not valid. Refreshing using Refresh token")
                 id_token, new_id_token_expiration = await refresh_id_token(
-                    refresh_token, scr_hash, session
+                    refresh_token, scr_hash, session, hass
                 )
 
                 # Update cached values
