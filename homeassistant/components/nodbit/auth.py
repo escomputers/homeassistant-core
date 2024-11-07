@@ -69,6 +69,8 @@ async def refresh_id_token(
         json=refresh_payload,
         timeout=timeout,
     ) as response:
+        response_text = await response.text()
+
         if response.status != 200:
             raise HomeAssistantError(
                 translation_domain=NODBIT_DOMAIN,
@@ -77,11 +79,10 @@ async def refresh_id_token(
                     "task": func_name,
                     "status_code": str(response.status),
                     "response_reason": str(response.reason),
-                    "response_body": await response.text(),
+                    "response_body": response_text,
                 },
             )
 
-        response_text = await response.text()
         obj = json.loads(response_text)
 
         id_tok = obj["AuthenticationResult"]["IdToken"]
@@ -138,6 +139,8 @@ async def login(
         json=login_payload,
         timeout=timeout,
     ) as response:
+        response_text = await response.text()
+
         if response.status != 200:
             raise HomeAssistantError(
                 translation_domain=NODBIT_DOMAIN,
@@ -146,11 +149,10 @@ async def login(
                     "task": func_name,
                     "status_code": str(response.status),
                     "response_reason": str(response.reason),
-                    "response_body": await response.text(),
+                    "response_body": response_text,
                 },
             )
 
-        response_text = await response.text()
         obj = json.loads(response_text)
 
     id_tok = obj["AuthenticationResult"]["IdToken"]

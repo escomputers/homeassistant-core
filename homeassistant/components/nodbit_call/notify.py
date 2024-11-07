@@ -83,13 +83,15 @@ class NodbitCallNotificationService(BaseNotificationService):
         async with self.session.post(
             SVC_URL, headers=headers, json=data, timeout=timeout
         ) as resp:
+            response_text = await resp.text()
+
             if resp.status != 200:
                 # Send a persistent notification for missing executions
                 await self.hass.services.async_call(
                     "persistent_notification",
                     "create",
                     {
-                        "message": "Cannot place call, check system logs for more details",
+                        "message": "Cannot place call. Check system logs for more details",
                         "title": "Nodbit notification",
                     },
                 )
@@ -101,10 +103,9 @@ class NodbitCallNotificationService(BaseNotificationService):
                         "task": func_name,
                         "status_code": str(resp.status),
                         "response_reason": str(resp.reason),
-                        "response_body": await resp.text(),
+                        "response_body": response_text,
                     },
                 )
 
-            response_text = await resp.text()
             obj = json.loads(response_text)
             _LOGGER.info(msg=obj)
