@@ -8,7 +8,7 @@ import logging
 import types
 from typing import Any, cast
 
-from aiohttp import ClientTimeout
+from aiohttp import ClientError, ClientTimeout
 
 import homeassistant.components.nodbit
 from homeassistant.components.nodbit import auth
@@ -80,31 +80,46 @@ class NodbitSMSNotificationService(BaseNotificationService):
             "targets": targets,
         }
 
-        async with self.session.post(
-            SVC_URL, headers=headers, json=data, timeout=timeout
-        ) as resp:
-            response_text = await resp.text()
+        try:
+            async with self.session.post(
+                SVC_URL, headers=headers, json=data, timeout=timeout
+            ) as resp:
+                response_text = await resp.text()
 
-            if resp.status != 200:
-                _LOGGER.error(
-                    "Task: %s - HTTP %s %s - %s",
-                    func_name,
-                    str(resp.status),
-                    str(resp.reason),
-                    response_text,
-                )
+                if resp.status != 200:
+                    _LOGGER.error(
+                        "Task: %s - HTTP %s %s - %s",
+                        func_name,
+                        str(resp.status),
+                        str(resp.reason),
+                        response_text,
+                    )
 
-                # Send a persistent notification whenever a critical error occurs
-                await self.hass.services.async_call(
-                    "persistent_notification",
-                    "create",
-                    {
-                        "message": "Cannot send SMS. Check system logs for more details",
-                        "title": "Nodbit notification",
-                    },
-                )
+                    # Send a persistent notification whenever a critical error occurs
+                    await self.hass.services.async_call(
+                        "persistent_notification",
+                        "create",
+                        {
+                            "message": "Cannot send SMS. Check system logs for more details",
+                            "title": "Nodbit notification",
+                        },
+                    )
 
-                raise ConnectionError
+                    raise ConnectionError
 
-            obj = json.loads(response_text)
-            _LOGGER.info(msg=obj)
+                obj = json.loads(response_text)
+                _LOGGER.info(msg=obj)
+        except ClientError as e:
+            _LOGGER.error("Task: %s - Cannot connect to server", func_name)
+
+            # Send a persistent notification whenever a critical error occurs
+            await self.hass.services.async_call(
+                "persistent_notification",
+                "create",
+                {
+                    "message": "Cannot connect to server. Check system logs for more details",
+                    "title": "Nodbit notification",
+                },
+            )
+
+            raise ConnectionError from e

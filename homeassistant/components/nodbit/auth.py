@@ -16,7 +16,7 @@ import time
 import types
 from typing import cast
 
-from aiohttp import ClientSession, ClientTimeout
+from aiohttp import ClientError, ClientSession, ClientTimeout
 
 # import backoff
 from homeassistant.core import HomeAssistant
@@ -147,52 +147,68 @@ async def login(
         },
     }
 
-    async with async_session.post(
-        AUTH_DOMAIN,
-        headers=HEADERS,
-        json=login_payload,
-        timeout=timeout,
-    ) as response:
-        response_text = await response.text()
+    try:
+        async with async_session.post(
+            AUTH_DOMAIN,
+            headers=HEADERS,
+            json=login_payload,
+            timeout=timeout,
+        ) as response:
+            response_text = await response.text()
 
-        if response.status != 200:
-            _LOGGER.error(
-                "Task: %s - HTTP %s %s - %s",
-                func_name,
-                str(response.status),
-                str(response.reason),
-                response_text,
-            )
+            if response.status != 200:
+                _LOGGER.error(
+                    "Task: %s - HTTP %s %s - %s",
+                    func_name,
+                    str(response.status),
+                    str(response.reason),
+                    response_text,
+                )
 
-            # Send a persistent notification whenever a critical error occurs
-            await hass_obj.services.async_call(
-                "persistent_notification",
-                "create",
-                {
-                    "message": "Cannot login. Check system logs for more details",
-                    "title": "Nodbit notification",
-                },
-            )
+                # Send a persistent notification whenever a critical error occurs
+                await hass_obj.services.async_call(
+                    "persistent_notification",
+                    "create",
+                    {
+                        "message": "Cannot login. Check system logs for more details",
+                        "title": "Nodbit notification",
+                    },
+                )
 
-            raise ConnectionError
+                raise ConnectionError
 
-        obj = json.loads(response_text)
+            obj = json.loads(response_text)
 
-    id_tok = obj["AuthenticationResult"]["IdToken"]
-    refresh_tok = obj["AuthenticationResult"]["RefreshToken"]
+        id_tok = obj["AuthenticationResult"]["IdToken"]
+        refresh_tok = obj["AuthenticationResult"]["RefreshToken"]
 
-    id_token_expiry_time = time.time() + IDTOKEN_LIFETIME
-    refresh_token_expiry_time = time.time() + REFRESHTOKEN_LIFETIME
+        id_token_expiry_time = time.time() + IDTOKEN_LIFETIME
+        refresh_token_expiry_time = time.time() + REFRESHTOKEN_LIFETIME
 
-    auth_data = {
-        "id_token": (id_tok, id_token_expiry_time),
-        "refresh_token": (refresh_tok, refresh_token_expiry_time),
-    }
+        auth_data = {
+            "id_token": (id_tok, id_token_expiry_time),
+            "refresh_token": (refresh_tok, refresh_token_expiry_time),
+        }
 
-    # Save tokens to persistent storage for reuse
-    await store_obj.async_save(auth_data)
+        # Save tokens to persistent storage for reuse
+        await store_obj.async_save(auth_data)
 
-    _LOGGER.info("Login successful. Tokens cached")
+        _LOGGER.info("Login successful. Tokens cached")
+    except ClientError as e:
+        _LOGGER.error("Task: %s - Cannot connect to server", func_name)
+
+        # Send a persistent notification whenever a critical error occurs
+        await hass_obj.services.async_call(
+            "persistent_notification",
+            "create",
+            {
+                "message": "Cannot connect to server. Check system logs for more details",
+                "title": "Nodbit notification",
+            },
+        )
+
+        raise ConnectionError from e
+
     return auth_data
 
 
