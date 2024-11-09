@@ -114,11 +114,16 @@ def retry_with_backoff_decorator(
                     wait_time = factor * base**attempt + random.uniform(
                         0, 1
                     )  # Full jitter
+
+                    # Try to extract a readable error message from the exception.
+                    # If str(e) is empty or only whitespace (common with some exceptions),
+                    # use repr(e) to ensure the log contains useful debugging information.
+                    error_message = str(e) if str(e).strip() else repr(e)
                     _LOGGER.warning(
                         "Attempt %d for %s failed with error: %s. Retrying in %.2f seconds",
                         attempt,
                         coro.__name__,
-                        str(e),
+                        error_message,
                         wait_time,
                     )
                     await asyncio.sleep(wait_time)

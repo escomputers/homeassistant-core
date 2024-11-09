@@ -53,33 +53,26 @@ class NodbitCallNotificationService(BaseNotificationService):
         self.session = async_get_clientsession(hass)
         self.store: Store = Store(hass, version=STORAGE_VERSION, key=STORAGE_KEY)
 
-    async def async_send_message(self, message: str = "", **kwargs: Any) -> None:
-        """Call to specified target users."""
+    @auth.retry_with_backoff_decorator(max_tries=3, base=1, factor=1)
+    async def _send_notification(self, headers: dict, data: dict) -> None:
+        """Send an HTTP POST request to the Nodbit API with retry logic.
 
-        if not (targets := kwargs.get(ATTR_TARGET)):
-            raise HomeAssistantError(
-                translation_domain=NODBIT_DOMAIN,
-                translation_key="missing_field",
-                translation_placeholders={"field": ATTR_TARGET},
-            )
+        This function sends a notification request to the Nodbit API. It uses a retry
+        mechanism with exponential backoff to handle transient network errors or
+        temporary API unavailability. The maximum number of attempts, backoff base,
+        and scaling factor are configurable in the applied decorator.
+
+        Args:
+            headers (dict): HTTP headers for the request, including authorization.
+            data (dict): JSON payload containing notification details.
+
+        Raises:
+            ConnectionError: If all retry attempts fail or the server responds with
+                a non-200 HTTP status code.
+
+        """
 
         func_name = cast(types.FrameType, inspect.currentframe()).f_code.co_name
-
-        id_token = await auth.get_id_token(
-            self.user_id, self.user_pwd, self.key, self.session, self.store, self.hass
-        )
-
-        headers = {
-            "Content-Type": CONTENT_TYPE_JSON,
-            "Authorization": f"Bearer {id_token}",
-        }
-
-        data = {
-            "alert_type": self.alert_type,
-            "message": message,
-            "targets": targets,
-        }
-
         try:
             async with self.session.post(
                 SVC_URL, headers=headers, json=data, timeout=timeout
@@ -123,3 +116,30 @@ class NodbitCallNotificationService(BaseNotificationService):
             )
 
             raise ConnectionError from e
+
+    async def async_send_message(self, message: str = "", **kwargs: Any) -> None:
+        """Call to specified target users."""
+
+        if not (targets := kwargs.get(ATTR_TARGET)):
+            raise HomeAssistantError(
+                translation_domain=NODBIT_DOMAIN,
+                translation_key="missing_field",
+                translation_placeholders={"field": ATTR_TARGET},
+            )
+
+        id_token = await auth.get_id_token(
+            self.user_id, self.user_pwd, self.key, self.session, self.store, self.hass
+        )
+
+        headers = {
+            "Content-Type": CONTENT_TYPE_JSON,
+            "Authorization": f"Bearer {id_token}",
+        }
+
+        data = {
+            "alert_type": self.alert_type,
+            "message": message,
+            "targets": targets,
+        }
+
+        await self._send_notification(headers, data)
