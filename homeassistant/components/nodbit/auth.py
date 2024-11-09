@@ -1,20 +1,64 @@
 """Authentication for Nodbit Integration.
 
-This module handles the authentication required to interact with Nodbit API.
-It provides functions for logging, refreshing tokens and managing token caching
-to ensure valid authentication during API calls. Key functionalities include:
+This module handles the authentication required to interact with the Nodbit API.
+It provides functions for logging, refreshing tokens, managing token caching,
+and ensuring reliable authentication during API calls. Key functionalities include:
 
 - `login`: Authenticate with the Nodbit API and retrieve ID and Refresh tokens.
+  This function is wrapped with a retry mechanism featuring exponential backoff
+  to handle transient network errors or API unavailability.
+
 - `refresh_id_token`: Refresh the ID token using the Refresh token.
+  This function also uses a retry mechanism with exponential backoff to ensure
+  reliability during network disruptions.
+
 - `get_id_token`: Retrieve a valid ID token, refreshing or re-authenticating if necessary.
+  It uses `login` and `refresh_id_token` internally, benefiting from their retry mechanism.
+
+- `retry_with_backoff_decorator`: A generic decorator that retries a coroutine
+  multiple times with an exponential backoff delay. This is used to wrap functions
+  like `login` and `refresh_id_token` to improve resilience against temporary failures.
+  The backoff mechanism includes configurable parameters:
+
+  - **Maximum Attempts (`max_tries`)**: Specifies the total number of attempts, including the
+    initial call and retries.
+    For example, `max_tries=4` means one initial attempt and up to three retries.
+  - **Base Multiplier (`base`)**: Defines the base for the exponential backoff calculation.
+    The delay for the `n`-th retry is calculated as `base^n`, scaled by the factor.
+  - **Scaling Factor (`factor`)**: Multiplies the calculated backoff delay to control
+    the total delay duration. For example, a factor of `2` doubles the delay for each retry.
+  - **Random Jitter**: Adds a small, random value to the backoff delay to prevent multiple
+    instances from retrying at the exact same intervals.
+    The jitter is implemented as a random value uniformly distributed between `0` and `1`.
+
+  **Example Calculation**:
+  Suppose the following parameters are used:
+  - `max_tries=4`
+  - `base=2`
+  - `factor=1`
+
+  The retry mechanism would behave as follows:
+  - **Attempt 1**: No delay (initial call).
+  - **Attempt 2**: Delay = `factor * (base^1)` = `1 * 2` = 2 seconds (+ jitter).
+  - **Attempt 3**: Delay = `factor * (base^2)` = `1 * 4` = 4 seconds (+ jitter).
+  - **Attempt 4**: Delay = `factor * (base^3)` = `1 * 8` = 8 seconds (+ jitter).
+
+  Total delay (without jitter) = 2 + 4 + 8 = ~ 14 seconds.
+
+  With jitter, the total delay will vary slightly, but the intervals between retries
+  will remain approximately exponential.
+  This ensures a balance between responsiveness and resilience in handling temporary failures.
 """
 
+import asyncio
+from collections.abc import Callable, Coroutine
 import inspect
 import json
 import logging
+import random
 import time
 import types
-from typing import cast
+from typing import Any, TypeVar, cast
 
 from aiohttp import ClientError, ClientSession, ClientTimeout
 
@@ -33,7 +77,62 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 timeout = ClientTimeout(total=HTTP_TIMEOUT)
 
+# Creates a generic type T
+T = TypeVar("T")
 
+
+def retry_with_backoff_decorator(
+    max_tries: int = 4,
+    base: int = 2,
+    factor: int = 1,
+) -> Callable[
+    [Callable[..., Coroutine[Any, Any, T]]], Callable[..., Coroutine[Any, Any, T]]
+]:
+    """Create a decorator to retry a coroutine with exponential backoff.
+
+    Args:
+        max_tries (int): Maximum number of attempts.
+        base (int): Base multiplier for the backoff.
+        factor (int): Factor for scaling the backoff.
+
+    Returns:
+        A decorator that retries the coroutine.
+
+    """
+
+    def decorator(
+        coro: Callable[..., Coroutine[Any, Any, T]],
+    ) -> Callable[..., Coroutine[Any, Any, T]]:
+        async def wrapper(*args, **kwargs):
+            for attempt in range(1, max_tries + 1):
+                try:
+                    return await coro(*args, **kwargs)
+                except Exception as e:
+                    if attempt == max_tries:
+                        _LOGGER.error("Max retries reached for %s", coro.__name__)
+                        raise
+                    wait_time = factor * base**attempt + random.uniform(
+                        0, 1
+                    )  # Full jitter
+                    _LOGGER.warning(
+                        "Attempt %d for %s failed with error: %s. Retrying in %.2f seconds",
+                        attempt,
+                        coro.__name__,
+                        str(e),
+                        wait_time,
+                    )
+                    await asyncio.sleep(wait_time)
+            # Explicit return to clarify intent;
+            # ensures all code paths have a return value
+            # even though this line is unreachable in the current implementation.
+            return None
+
+        return wrapper
+
+    return decorator
+
+
+@retry_with_backoff_decorator(max_tries=4, base=2, factor=1)
 async def refresh_id_token(
     refresh_tok: str,
     secret_hash: str,
@@ -103,6 +202,7 @@ async def refresh_id_token(
         return id_tok, new_id_token_expiry_time
 
 
+@retry_with_backoff_decorator(max_tries=5, base=2, factor=1)
 async def login(
     user_id: str,
     user_pass: str,
@@ -126,7 +226,7 @@ async def login(
 
     """
 
-    _LOGGER.info("Starting login process")
+    _LOGGER.info("Trying to log in")
     func_name = cast(types.FrameType, inspect.currentframe()).f_code.co_name
 
     login_payload = {
@@ -226,7 +326,6 @@ async def get_id_token(
         str: A valid ID token for authentication with Nodbit Notification API.
 
     """
-    _LOGGER.info("Starting ID token retrieval")
 
     # Load cached tokens
     existing_auth_data = await store.async_load()
