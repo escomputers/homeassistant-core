@@ -182,42 +182,47 @@ async def refresh_id_token(
         },
     }
 
-    async with async_session.post(
-        AUTH_DOMAIN,
-        headers=HEADERS,
-        json=refresh_payload,
-        timeout=timeout,
-    ) as response:
-        response_text = await response.text()
+    try:
+        async with async_session.post(
+            AUTH_DOMAIN,
+            headers=HEADERS,
+            json=refresh_payload,
+            timeout=timeout,
+        ) as response:
+            response_text = await response.text()
 
-        if response.status != 200:
-            _LOGGER.error(
-                "Task: %s - HTTP %s %s - %s",
-                func_name,
-                str(response.status),
-                str(response.reason),
-                response_text,
-            )
+            if response.status != 200:
+                _LOGGER.error(
+                    "Task: %s - HTTP %s %s - %s",
+                    func_name,
+                    str(response.status),
+                    str(response.reason),
+                    response_text,
+                )
 
-            # Send a persistent notification whenever a critical error occurs
-            await hass_obj.services.async_call(
-                "persistent_notification",
-                "create",
-                {
-                    "message": "Cannot refresh credentials. Check system logs for more details",
-                    "title": "Nodbit notification",
-                },
-            )
+                # Send a persistent notification whenever a critical error occurs
+                await hass_obj.services.async_call(
+                    "persistent_notification",
+                    "create",
+                    {
+                        "message": "Cannot refresh credentials. Check system logs for more details",
+                        "title": "Nodbit notification",
+                    },
+                )
 
-            raise ConnectionError
+                raise ConnectionError
 
-        obj = json.loads(response_text)
+            obj = json.loads(response_text)
 
-        id_tok = obj["AuthenticationResult"]["IdToken"]
-        new_id_token_expiry_time = time.time() + IDTOKEN_LIFETIME
+            id_tok = obj["AuthenticationResult"]["IdToken"]
+            new_id_token_expiry_time = time.time() + IDTOKEN_LIFETIME
 
-        _LOGGER.info("ID token successfully refreshed")
-        return id_tok, new_id_token_expiry_time
+            _LOGGER.info("ID token successfully refreshed")
+    except (ClientError, TimeoutError) as e:
+        _LOGGER.error("Task: %s - Cannot connect to server", func_name)
+        raise ConnectionError from e
+
+    return id_tok, new_id_token_expiry_time
 
 
 @retry_with_backoff_decorator(max_tries=5, base=2, factor=1)
@@ -318,19 +323,8 @@ async def login(
         await store_obj.async_save(auth_data)
 
         _LOGGER.info("Login successful. Tokens cached")
-    except ClientError as e:
+    except (ClientError, TimeoutError) as e:
         _LOGGER.error("Task: %s - Cannot connect to server", func_name)
-
-        # Send a persistent notification whenever a critical error occurs
-        await hass_obj.services.async_call(
-            "persistent_notification",
-            "create",
-            {
-                "message": "Cannot connect to server. Check system logs for more details",
-                "title": "Nodbit notification",
-            },
-        )
-
         raise ConnectionError from e
 
     return auth_data
@@ -373,8 +367,20 @@ async def get_id_token(
 
     if existing_auth_data is None:
         # No cached data. Perform login
-        _LOGGER.info("No cache found, performing login")
-        auth_data = await login(usr_id, usr_pwd, scr_hash, session, store, hass)
+        _LOGGER.info("No cache found, trying to login")
+        try:
+            auth_data = await login(usr_id, usr_pwd, scr_hash, session, store, hass)
+        except (ClientError, TimeoutError):
+            # Send a persistent notification whenever a critical error occurs
+            await hass.services.async_call(
+                "persistent_notification",
+                "create",
+                {
+                    "message": "Cannot connect to server. Check system logs for more details",
+                    "title": "Nodbit notification",
+                },
+            )
+            raise
 
         id_token_data = auth_data.get("id_token")
         if id_token_data is not None:
@@ -400,7 +406,21 @@ async def get_id_token(
             # ID token expired. Check Refresh token
             if current_time >= refresh_token_expiration:
                 _LOGGER.info("Both tokens expired. Re-authenticating")
-                auth_data = await login(usr_id, usr_pwd, scr_hash, session, store, hass)
+                try:
+                    auth_data = await login(
+                        usr_id, usr_pwd, scr_hash, session, store, hass
+                    )
+                except (ClientError, TimeoutError):
+                    # Send a persistent notification whenever a critical error occurs
+                    await hass.services.async_call(
+                        "persistent_notification",
+                        "create",
+                        {
+                            "message": "Cannot connect to server. Check system logs for more details",
+                            "title": "Nodbit notification",
+                        },
+                    )
+                    raise
 
                 id_token_data = auth_data.get("id_token")
                 if id_token_data is not None:
@@ -412,9 +432,21 @@ async def get_id_token(
             # ID token expired, but Refresh token is valid
             else:
                 _LOGGER.info("ID token is not valid. Refreshing using Refresh token")
-                id_token, new_id_token_expiration = await refresh_id_token(
-                    refresh_token, scr_hash, session, hass
-                )
+                try:
+                    id_token, new_id_token_expiration = await refresh_id_token(
+                        refresh_token, scr_hash, session, hass
+                    )
+                except (ClientError, TimeoutError):
+                    # Send a persistent notification whenever a critical error occurs
+                    await hass.services.async_call(
+                        "persistent_notification",
+                        "create",
+                        {
+                            "message": "Cannot connect to server. Check system logs for more details",
+                            "title": "Nodbit notification",
+                        },
+                    )
+                    raise
 
                 # Update cached values
                 existing_auth_data["id_token"] = id_token, new_id_token_expiration

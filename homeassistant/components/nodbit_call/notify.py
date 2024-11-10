@@ -54,7 +54,7 @@ class NodbitCallNotificationService(BaseNotificationService):
         self.session = async_get_clientsession(hass)
         self.store: Store = Store(hass, version=STORAGE_VERSION, key=STORAGE_KEY)
 
-    @auth.retry_with_backoff_decorator(max_tries=3, base=1, factor=1)
+    @auth.retry_with_backoff_decorator(max_tries=4, base=2, factor=1)
     async def _send_notification(self, headers: dict, data: dict) -> None:
         """Send an HTTP POST request to the Nodbit API with retry logic.
 
@@ -103,19 +103,8 @@ class NodbitCallNotificationService(BaseNotificationService):
 
                 obj = json.loads(response_text)
                 _LOGGER.info(msg=obj)
-        except ClientError as e:
+        except (ClientError, TimeoutError) as e:
             _LOGGER.error("Task: %s - Cannot connect to server", func_name)
-
-            # Send a persistent notification whenever a critical error occurs
-            await self.hass.services.async_call(
-                "persistent_notification",
-                "create",
-                {
-                    "message": "Cannot connect to server. Check system logs for more details",
-                    "title": "Nodbit notification",
-                },
-            )
-
             raise ConnectionError from e
 
     async def async_send_message(self, message: str = "", **kwargs: Any) -> None:
@@ -173,4 +162,16 @@ class NodbitCallNotificationService(BaseNotificationService):
             "targets": targets,
         }
 
-        await self._send_notification(headers, data)
+        try:
+            await self._send_notification(headers, data)
+        except (ConnectionError, TimeoutError):
+            # Send a persistent notification after all retry attempts fail
+            await self.hass.services.async_call(
+                "persistent_notification",
+                "create",
+                {
+                    "message": "Cannot connect to server after multiple attempts. Check system logs for more details.",
+                    "title": "Nodbit notification",
+                },
+            )
+            raise
