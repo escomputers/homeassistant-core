@@ -5,6 +5,7 @@ from __future__ import annotations
 import inspect
 import json
 import logging
+import re
 import types
 from typing import Any, cast
 
@@ -135,13 +136,27 @@ class NodbitSMSNotificationService(BaseNotificationService):
                 with the API or network.
 
         """
-
-        if not (targets := kwargs.get(ATTR_TARGET)):
+        if not (targets_raw := kwargs.get(ATTR_TARGET)):
             raise HomeAssistantError(
                 translation_domain=NODBIT_DOMAIN,
-                translation_key="invalid_field",
+                translation_key="missing_field",
                 translation_placeholders={"field": ATTR_TARGET},
             )
+
+        targets = []
+        for target in targets_raw:
+            # Split numbers using comma as separator
+            numbers = target.split(",")
+            for num in numbers:
+                num = num.strip()  # Remove spaces
+                if not re.fullmatch(r"\d+", num):
+                    raise HomeAssistantError(
+                        translation_domain=NODBIT_DOMAIN,
+                        translation_key="invalid_targets",
+                        translation_placeholders={"field": ATTR_TARGET},
+                    )
+
+                targets.append(num)
 
         id_token = await auth.get_id_token(
             self.user_id, self.user_pwd, self.key, self.session, self.store, self.hass
