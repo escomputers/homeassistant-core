@@ -89,7 +89,6 @@ class NodbitCallNotificationService(BaseNotificationService):
                         response_text,
                     )
 
-                    # Send a persistent notification whenever a critical error occurs
                     await self.hass.services.async_call(
                         "persistent_notification",
                         "create",
@@ -165,7 +164,7 @@ class NodbitCallNotificationService(BaseNotificationService):
         try:
             await self._send_notification(headers, data)
         except (ConnectionError, TimeoutError):
-            # Send a persistent notification after all retry attempts fail
+            # All retry attempts failed
             await self.hass.services.async_call(
                 "persistent_notification",
                 "create",

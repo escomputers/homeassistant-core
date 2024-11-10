@@ -71,6 +71,7 @@ from .const import (
     HTTP_TIMEOUT,
     ID,
     IDTOKEN_LIFETIME,
+    NODBIT_DOMAIN,
     REFRESHTOKEN_LIFETIME,
 )
 
@@ -79,6 +80,18 @@ timeout = ClientTimeout(total=HTTP_TIMEOUT)
 
 # Creates a generic type T
 T = TypeVar("T")
+
+
+async def send_persistent_notification(hass: HomeAssistant, message: str) -> None:
+    """Send a persistent notification."""
+    await hass.services.async_call(
+        "persistent_notification",
+        "create",
+        {
+            "message": message,
+            "title": NODBIT_DOMAIN + " " + "notification",
+        },
+    )
 
 
 def retry_with_backoff_decorator(
@@ -200,16 +213,10 @@ async def refresh_id_token(
                     response_text,
                 )
 
-                # Send a persistent notification whenever a critical error occurs
-                await hass_obj.services.async_call(
-                    "persistent_notification",
-                    "create",
-                    {
-                        "message": "Cannot refresh credentials. Check system logs for more details",
-                        "title": "Nodbit notification",
-                    },
+                await send_persistent_notification(
+                    hass_obj,
+                    message="Cannot refresh credentials. Check system logs for more details",
                 )
-
                 raise ConnectionError
 
             obj = json.loads(response_text)
@@ -294,16 +301,10 @@ async def login(
                     response_text,
                 )
 
-                # Send a persistent notification whenever a critical error occurs
-                await hass_obj.services.async_call(
-                    "persistent_notification",
-                    "create",
-                    {
-                        "message": "Cannot login. Check system logs for more details",
-                        "title": "Nodbit notification",
-                    },
+                await send_persistent_notification(
+                    hass_obj,
+                    message="Cannot login. Check system logs for more details",
                 )
-
                 raise ConnectionError
 
             obj = json.loads(response_text)
@@ -371,14 +372,9 @@ async def get_id_token(
         try:
             auth_data = await login(usr_id, usr_pwd, scr_hash, session, store, hass)
         except (ClientError, TimeoutError):
-            # Send a persistent notification whenever a critical error occurs
-            await hass.services.async_call(
-                "persistent_notification",
-                "create",
-                {
-                    "message": "Cannot connect to server. Check system logs for more details",
-                    "title": "Nodbit notification",
-                },
+            await send_persistent_notification(
+                hass,
+                message="Cannot connect to server. Check system logs for more details",
             )
             raise
 
@@ -411,14 +407,9 @@ async def get_id_token(
                         usr_id, usr_pwd, scr_hash, session, store, hass
                     )
                 except (ClientError, TimeoutError):
-                    # Send a persistent notification whenever a critical error occurs
-                    await hass.services.async_call(
-                        "persistent_notification",
-                        "create",
-                        {
-                            "message": "Cannot connect to server. Check system logs for more details",
-                            "title": "Nodbit notification",
-                        },
+                    await send_persistent_notification(
+                        hass,
+                        message="Cannot connect to server. Check system logs for more details",
                     )
                     raise
 
@@ -437,14 +428,9 @@ async def get_id_token(
                         refresh_token, scr_hash, session, hass
                     )
                 except (ClientError, TimeoutError):
-                    # Send a persistent notification whenever a critical error occurs
-                    await hass.services.async_call(
-                        "persistent_notification",
-                        "create",
-                        {
-                            "message": "Cannot connect to server. Check system logs for more details",
-                            "title": "Nodbit notification",
-                        },
+                    await send_persistent_notification(
+                        hass,
+                        message="Cannot connect to server. Check system logs for more details",
                     )
                     raise
 
