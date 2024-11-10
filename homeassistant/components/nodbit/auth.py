@@ -144,16 +144,29 @@ async def refresh_id_token(
     async_session: ClientSession,
     hass_obj: HomeAssistant,
 ) -> tuple[str, float]:
-    """Refresh ID token using the Refresh token.
+    """Refresh the ID token using the provided Refresh token.
+
+    This function interacts with the Nodbit API to obtain a new ID token when the
+    current one has expired. It uses a retry mechanism with exponential backoff to
+    handle transient network errors or API unavailability.
 
     Args:
-        refresh_tok (str): The refresh token retrieved during login.
+        refresh_tok (str): The Refresh token retrieved during login.
         secret_hash (str): Client-specific secret hash for authentication.
         async_session (ClientSession): The session for making HTTP requests.
-        hass_obj (HomeAssistant): HomeAssistant core object for sending persistent notifications
+        hass_obj (HomeAssistant): HomeAssistant core object for sending persistent notifications.
 
     Returns:
-        tuple[str, float]: The new ID token and its expiration time (unix epoch).
+        tuple[str, float]: A tuple containing:
+            - The new ID token (str).
+            - Its expiration time as a Unix epoch timestamp (float).
+
+    Raises:
+        ConnectionError: If all retry attempts fail, the server is unreachable, or
+            the server responds with a non-200 HTTP status code.
+        ValueError: If the response from the API does not contain valid token data.
+        ClientError: If there is a problem with the HTTP session, such as invalid headers
+            or other client-side issues.
 
     """
 
@@ -218,16 +231,30 @@ async def login(
 ) -> dict[str, tuple[str, float]]:
     """Authenticate with Nodbit API to retrieve new tokens.
 
+    This function sends the user's credentials to the Nodbit API to authenticate
+    and retrieve an ID token and a Refresh token, along with their expiration times.
+    It uses a retry mechanism with exponential backoff to handle transient network
+    errors or API unavailability.
+
     Args:
         user_id (str): User's login ID.
         user_pass (str): User's password.
         secret_hash (str): Client-specific secret hash for authentication.
         async_session (ClientSession): The session for making HTTP requests.
         store_obj (Store): Persistent storage object for caching tokens.
-        hass_obj (HomeAssistant): HomeAssistant core object for sending persistent notifications
+        hass_obj (HomeAssistant): HomeAssistant core object for sending persistent notifications.
 
     Returns:
-        dict[str, tuple[str, float]]: ID and Refresh tokens with their expiration times (unix epoch).
+        dict[str, tuple[str, float]]: A dictionary containing:
+            - "id_token": A tuple with the ID token and its expiration time (unix epoch).
+            - "refresh_token": A tuple with the Refresh token and its expiration time (unix epoch).
+
+    Raises:
+        ConnectionError: If all retry attempts fail, the server is unreachable, or
+            the server responds with a non-200 HTTP status code.
+        ClientError: If there is a problem with the HTTP session, such as invalid headers
+            or other client-side issues.
+        ValueError: If the response from the API does not contain valid authentication data.
 
     """
 
@@ -319,16 +346,25 @@ async def get_id_token(
 ) -> str:
     """Retrieve a valid ID token, refreshing or re-authenticating if necessary.
 
+    This function retrieves a valid ID token by either loading it from the cache,
+    refreshing it using a refresh token, or performing a new login if necessary.
+    It handles token expiration and ensures that a valid token is always returned.
+
     Args:
         usr_id (str): User's login ID.
         usr_pwd (str): User's password.
         scr_hash (str): Client-specific secret hash for authentication.
         session (ClientSession): The session for making HTTP requests.
         store (Store): Persistent storage object for caching tokens.
-        hass (HomeAssistant): HomeAssistant core object for sending persistent notifications
+        hass (HomeAssistant): HomeAssistant core object for sending persistent notifications.
 
     Returns:
         str: A valid ID token for authentication with Nodbit Notification API.
+
+    Raises:
+        ValueError: If the ID token cannot be retrieved after login or token refresh.
+        ConnectionError: If the server cannot be reached during login or token refresh.
+        Exception: For any unexpected errors during the authentication process.
 
     """
 

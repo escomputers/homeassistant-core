@@ -118,12 +118,27 @@ class NodbitCallNotificationService(BaseNotificationService):
             raise ConnectionError from e
 
     async def async_send_message(self, message: str = "", **kwargs: Any) -> None:
-        """Call to specified target users."""
+        """Place a call to specified target users.
 
+        This function sends a message to the specified target users using the Nodbit API.
+        It retrieves a valid ID token for authentication, constructs the required HTTP headers
+        and payload, and delegates the actual notification sending to `_send_notification`.
+
+        Args:
+            message (str): The message content to be played in the call.
+            **kwargs (Any): Additional arguments, including:
+                - ATTR_TARGET: List of phone numbers that will receive the notification.
+
+        Raises:
+            HomeAssistantError: If the `ATTR_TARGET` argument is missing or empty.
+            ConnectionError: If the `_send_notification` function encounters issues
+                with the API or network.
+
+        """
         if not (targets := kwargs.get(ATTR_TARGET)):
             raise HomeAssistantError(
                 translation_domain=NODBIT_DOMAIN,
-                translation_key="missing_field",
+                translation_key="invalid_field",
                 translation_placeholders={"field": ATTR_TARGET},
             )
 

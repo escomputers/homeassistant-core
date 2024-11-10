@@ -1,7 +1,7 @@
 {
   "exceptions": {
-    "missing_field": {
-      "message": "Field {field} is required"
+    "invalid_field": {
+      "message": "Field {field} is missing or invalid"
     }
   }
 }
