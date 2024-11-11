@@ -5,6 +5,7 @@ from __future__ import annotations
 import inspect
 import json
 import logging
+import re
 import types
 from typing import Any, cast
 
@@ -53,17 +54,97 @@ class NodbitCallNotificationService(BaseNotificationService):
         self.session = async_get_clientsession(hass)
         self.store: Store = Store(hass, version=STORAGE_VERSION, key=STORAGE_KEY)
 
-    async def async_send_message(self, message: str = "", **kwargs: Any) -> None:
-        """Call to specified target users."""
+    @auth.retry_with_backoff_decorator(max_tries=4, base=2, factor=1)
+    async def _send_notification(self, headers: dict, data: dict) -> None:
+        """Send an HTTP POST request to the Nodbit API with retry logic.
 
-        if not (targets := kwargs.get(ATTR_TARGET)):
+        This function sends a notification request to the Nodbit API. It uses a retry
+        mechanism with exponential backoff to handle transient network errors or
+        temporary API unavailability. The maximum number of attempts, backoff base,
+        and scaling factor are configurable in the applied decorator.
+
+        Args:
+            headers (dict): HTTP headers for the request, including authorization.
+            data (dict): JSON payload containing notification details.
+
+        Raises:
+            ConnectionError: If all retry attempts fail or the server responds with
+                a non-200 HTTP status code.
+
+        """
+
+        func_name = cast(types.FrameType, inspect.currentframe()).f_code.co_name
+        try:
+            async with self.session.post(
+                SVC_URL, headers=headers, json=data, timeout=timeout
+            ) as resp:
+                response_text = await resp.text()
+
+                if resp.status != 200:
+                    _LOGGER.error(
+                        "Task: %s - HTTP %s %s - %s",
+                        func_name,
+                        str(resp.status),
+                        str(resp.reason),
+                        response_text,
+                    )
+
+                    await self.hass.services.async_call(
+                        "persistent_notification",
+                        "create",
+                        {
+                            "message": "Cannot place call. Check system logs for more details",
+                            "title": "Nodbit notification",
+                        },
+                    )
+
+                    raise ConnectionError
+
+                obj = json.loads(response_text)
+                _LOGGER.info(msg=obj)
+        except (ClientError, TimeoutError) as e:
+            _LOGGER.error("Task: %s - Cannot connect to server", func_name)
+            raise ConnectionError from e
+
+    async def async_send_message(self, message: str = "", **kwargs: Any) -> None:
+        """Place a call to specified target users.
+
+        This function sends a message to the specified target users using the Nodbit API.
+        It retrieves a valid ID token for authentication, constructs the required HTTP headers
+        and payload, and delegates the actual notification sending to `_send_notification`.
+
+        Args:
+            message (str): The message content to be played in the call.
+            **kwargs (Any): Additional arguments, including:
+                - ATTR_TARGET: List of phone numbers that will receive the notification.
+
+        Raises:
+            HomeAssistantError: If the `ATTR_TARGET` argument is missing or empty.
+            ConnectionError: If the `_send_notification` function encounters issues
+                with the API or network.
+
+        """
+        if not (targets_raw := kwargs.get(ATTR_TARGET)):
             raise HomeAssistantError(
                 translation_domain=NODBIT_DOMAIN,
                 translation_key="missing_field",
                 translation_placeholders={"field": ATTR_TARGET},
             )
 
-        func_name = cast(types.FrameType, inspect.currentframe()).f_code.co_name
+        targets = []
+        for target in targets_raw:
+            # Split numbers using comma as separator
+            numbers = target.split(",")
+            for num in numbers:
+                num = num.strip()  # Remove spaces
+                if not re.fullmatch(r"\d+", num):
+                    raise HomeAssistantError(
+                        translation_domain=NODBIT_DOMAIN,
+                        translation_key="invalid_targets",
+                        translation_placeholders={"field": ATTR_TARGET},
+                    )
+
+                targets.append(num)
 
         id_token = await auth.get_id_token(
             self.user_id, self.user_pwd, self.key, self.session, self.store, self.hass
@@ -81,45 +162,15 @@ class NodbitCallNotificationService(BaseNotificationService):
         }
 
         try:
-            async with self.session.post(
-                SVC_URL, headers=headers, json=data, timeout=timeout
-            ) as resp:
-                response_text = await resp.text()
-
-                if resp.status != 200:
-                    _LOGGER.error(
-                        "Task: %s - HTTP %s %s - %s",
-                        func_name,
-                        str(resp.status),
-                        str(resp.reason),
-                        response_text,
-                    )
-
-                    # Send a persistent notification whenever a critical error occurs
-                    await self.hass.services.async_call(
-                        "persistent_notification",
-                        "create",
-                        {
-                            "message": "Cannot place call. Check system logs for more details",
-                            "title": "Nodbit notification",
-                        },
-                    )
-
-                    raise ConnectionError
-
-                obj = json.loads(response_text)
-                _LOGGER.info(msg=obj)
-        except ClientError as e:
-            _LOGGER.error("Task: %s - Cannot connect to server", func_name)
-
-            # Send a persistent notification whenever a critical error occurs
+            await self._send_notification(headers, data)
+        except (ConnectionError, TimeoutError):
+            # All retry attempts failed
             await self.hass.services.async_call(
                 "persistent_notification",
                 "create",
                 {
-                    "message": "Cannot connect to server. Check system logs for more details",
+                    "message": "Cannot connect to server after multiple attempts. Check system logs for more details.",
                     "title": "Nodbit notification",
                 },
             )
-
-            raise ConnectionError from e
+            raise

@@ -1,7 +1,10 @@
 {
   "exceptions": {
     "missing_field": {
-      "message": "Field {field} is required"
+      "message": "Field {field} is missing or invalid"
+    },
+    "invalid_targets": {
+      "message": "Field {field} is invalid. Only digits are allowed"
     }
   }
 }
