@@ -89,7 +89,7 @@ async def send_persistent_notification(hass: HomeAssistant, message: str) -> Non
         "create",
         {
             "message": message,
-            "title": NODBIT_DOMAIN + " " + "notification",
+            "title": NODBIT_DOMAIN.capitalize() + " " +"notification",
         },
     )
 
