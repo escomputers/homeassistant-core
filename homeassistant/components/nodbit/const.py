@@ -1,6 +1,6 @@
 """Constants for Nodbit."""
 
-NODBIT_DOMAIN = "Nodbit"
+NODBIT_DOMAIN = "nodbit"
 AUTH_DOMAIN = "https://cognito-idp.us-east-1.amazonaws.com/"
 SVC_URL = "https://da2i13b7ae.execute-api.us-east-1.amazonaws.com/prod/testing"
 ID = "s9rksanbi9ak9omir8ihkd6uc"
