@@ -94,7 +94,7 @@ class NodbitCallNotificationService(BaseNotificationService):
                         "create",
                         {
                             "message": "Cannot place call. Check system logs for more details",
-                            "title": "Nodbit notification",
+                            "title": NODBIT_DOMAIN.capitalize() + " " +"notification",
                         },
                     )
 
