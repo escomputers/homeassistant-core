@@ -95,7 +95,7 @@ class NodbitSMSNotificationService(BaseNotificationService):
                         "create",
                         {
                             "message": "Cannot send SMS. Check system logs for more details",
-                            "title": "Nodbit notification",
+                            "title": NODBIT_DOMAIN.capitalize() + " " +"notification",
                         },
                     )
 
@@ -171,7 +171,7 @@ class NodbitSMSNotificationService(BaseNotificationService):
                 "create",
                 {
                     "message": "Cannot connect to server after multiple attempts. Check system logs for more details.",
-                    "title": "Nodbit notification",
+                    "title": NODBIT_DOMAIN.capitalize() + " " +"notification",
                 },
             )
             raise
