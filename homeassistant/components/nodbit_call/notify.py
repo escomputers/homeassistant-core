@@ -170,7 +170,7 @@ class NodbitCallNotificationService(BaseNotificationService):
                 "create",
                 {
                     "message": "Cannot connect to server after multiple attempts. Check system logs for more details.",
-                    "title": "Nodbit notification",
+                    "title": NODBIT_DOMAIN.capitalize() + " " +"notification",
                 },
             )
             raise
