@@ -53,6 +53,7 @@ class NodbitSMSNotificationService(BaseNotificationService):
         self.alert_type = alert_type
         self.session = async_get_clientsession(hass)
         self.store: Store = Store(hass, version=STORAGE_VERSION, key=STORAGE_KEY)
+        self.fmt_domain = NODBIT_DOMAIN.capitalize()
 
     @auth.retry_with_backoff_decorator(max_tries=3, base=1, factor=1)
     async def _send_notification(self, headers: dict, data: dict) -> None:
@@ -95,7 +96,7 @@ class NodbitSMSNotificationService(BaseNotificationService):
                         "create",
                         {
                             "message": "Cannot send SMS. Check system logs for more details",
-                            "title": NODBIT_DOMAIN.capitalize() + " " + "notification",
+                            "title": self.fmt_domain + " notification",
                         },
                     )
 
@@ -171,7 +172,7 @@ class NodbitSMSNotificationService(BaseNotificationService):
                 "create",
                 {
                     "message": "Connection failed. Check system logs for details.",
-                    "title": NODBIT_DOMAIN.capitalize() + " " + "notification",
+                    "title": self.fmt_domain + " notification",
                 },
             )
             raise

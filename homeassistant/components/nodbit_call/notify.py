@@ -53,6 +53,7 @@ class NodbitCallNotificationService(BaseNotificationService):
         self.alert_type = alert_type
         self.session = async_get_clientsession(hass)
         self.store: Store = Store(hass, version=STORAGE_VERSION, key=STORAGE_KEY)
+        self.fmt_domain = NODBIT_DOMAIN.capitalize()
 
     @auth.retry_with_backoff_decorator(max_tries=4, base=2, factor=1)
     async def _send_notification(self, headers: dict, data: dict) -> None:
@@ -94,7 +95,7 @@ class NodbitCallNotificationService(BaseNotificationService):
                         "create",
                         {
                             "message": "Cannot place call. Check system logs for more details",
-                            "title": NODBIT_DOMAIN.capitalize() + " " + "notification",
+                            "title": self.fmt_domain + " notification",
                         },
                     )
 
@@ -170,7 +171,7 @@ class NodbitCallNotificationService(BaseNotificationService):
                 "create",
                 {
                     "message": "Connection failed. Check system logs for details.",
-                    "title": NODBIT_DOMAIN.capitalize() + " " + "notification",
+                    "title": self.fmt_domain + " notification",
                 },
             )
             raise
