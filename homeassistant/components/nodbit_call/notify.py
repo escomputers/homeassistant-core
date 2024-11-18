@@ -169,7 +169,7 @@ class NodbitCallNotificationService(BaseNotificationService):
                 "persistent_notification",
                 "create",
                 {
-                    "message": "Connection failed after multiple attempts. Check system logs for details.",
+                    "message": "Connection failed. Check system logs for details.",
                     "title": NODBIT_DOMAIN.capitalize() + " " + "notification",
                 },
             )
