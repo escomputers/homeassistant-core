@@ -80,6 +80,7 @@ timeout = ClientTimeout(total=HTTP_TIMEOUT)
 
 # Creates a generic type T
 T = TypeVar("T")
+fmt_domain = NODBIT_DOMAIN.capitalize()
 
 
 async def send_persistent_notification(hass: HomeAssistant, message: str) -> None:
@@ -89,7 +90,7 @@ async def send_persistent_notification(hass: HomeAssistant, message: str) -> Non
         "create",
         {
             "message": message,
-            "title": NODBIT_DOMAIN.capitalize() + " " +"notification",
+            "title": fmt_domain + " notification",
         },
     )
 
