@@ -1,8 +1,7 @@
 """Test the Home Connect config flow."""
 
-from collections.abc import Awaitable, Callable
 from http import HTTPStatus
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from aiohomeconnect.const import OAUTH2_AUTHORIZE, OAUTH2_TOKEN
 import pytest
@@ -143,13 +142,13 @@ async def test_prevent_reconfiguring_same_account(
 @pytest.mark.usefixtures("current_request_with_host")
 async def test_reauth_flow(
     hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    integration_setup: Callable[[MagicMock], Awaitable[bool]],
-    client: MagicMock,
     hass_client_no_auth: ClientSessionGenerator,
     aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
 ) -> None:
     """Test reauth flow."""
+    config_entry.add_to_hass(hass)
+
     result = await config_entry.start_reauth_flow(hass)
 
     assert result["type"] is FlowResultType.FORM
@@ -190,20 +189,20 @@ async def test_reauth_flow(
     assert entry.state is ConfigEntryState.LOADED
     assert len(mock_setup_entry.mock_calls) == 1
 
-    assert result["type"] == FlowResultType.ABORT
+    assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reauth_successful"
 
 
 @pytest.mark.usefixtures("current_request_with_host")
 async def test_reauth_flow_with_different_account(
     hass: HomeAssistant,
-    config_entry: MockConfigEntry,
-    integration_setup: Callable[[MagicMock], Awaitable[bool]],
-    client: MagicMock,
     hass_client_no_auth: ClientSessionGenerator,
     aioclient_mock: AiohttpClientMocker,
+    config_entry: MockConfigEntry,
 ) -> None:
     """Test reauth flow."""
+    config_entry.add_to_hass(hass)
+
     result = await config_entry.start_reauth_flow(hass)
 
     assert result["type"] is FlowResultType.FORM
@@ -240,5 +239,5 @@ async def test_reauth_flow_with_different_account(
     result = await hass.config_entries.flow.async_configure(result["flow_id"])
     await hass.async_block_till_done()
 
-    assert result["type"] == FlowResultType.ABORT
+    assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "wrong_account"
