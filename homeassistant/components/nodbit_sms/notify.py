@@ -161,6 +161,7 @@ class NodbitSMSNotificationService(BaseNotificationService):
             "alert_type": self.alert_type,
             "message": message,
             "targets": targets,
+            "tz": self.hass.config.time_zone,
         }
 
         try:
