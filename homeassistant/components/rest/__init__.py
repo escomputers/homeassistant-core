@@ -1,7 +1,5 @@
 """The rest component."""
 
-from __future__ import annotations
-
 import asyncio
 from collections.abc import Coroutine
 import contextlib
@@ -9,7 +7,7 @@ from datetime import timedelta
 import logging
 from typing import Any
 
-import httpx
+import aiohttp
 import voluptuous as vol
 
 from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR_DOMAIN
@@ -211,10 +209,10 @@ def create_rest_data_from_config(hass: HomeAssistant, config: ConfigType) -> Res
     if not resource:
         raise HomeAssistantError("Resource not set for RestData")
 
-    auth: httpx.DigestAuth | tuple[str, str] | None = None
+    auth: aiohttp.DigestAuthMiddleware | tuple[str, str] | None = None
     if username and password:
         if config.get(CONF_AUTHENTICATION) == HTTP_DIGEST_AUTHENTICATION:
-            auth = httpx.DigestAuth(username, password)
+            auth = aiohttp.DigestAuthMiddleware(username, password)
         else:
             auth = (username, password)
 

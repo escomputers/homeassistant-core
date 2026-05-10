@@ -1,7 +1,5 @@
 """Support for Fritzbox binary sensors."""
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Final
@@ -20,6 +18,9 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .coordinator import FritzboxConfigEntry
 from .entity import FritzBoxDeviceEntity
 from .model import FritzEntityDescriptionMixinBase
+
+# Coordinator handles data updates, so we can allow unlimited parallel updates
+PARALLEL_UPDATES = 0
 
 
 @dataclass(frozen=True, kw_only=True)

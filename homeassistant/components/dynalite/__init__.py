@@ -1,7 +1,5 @@
 """Support for the Dynalite networks."""
 
-from __future__ import annotations
-
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
@@ -12,7 +10,7 @@ from .bridge import DynaliteBridge
 from .const import DOMAIN, LOGGER, PLATFORMS
 from .convert_config import convert_config
 from .panel import async_register_dynalite_frontend
-from .services import setup_services
+from .services import async_setup_services
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -21,7 +19,7 @@ type DynaliteConfigEntry = ConfigEntry[DynaliteBridge]
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Dynalite platform."""
-    setup_services(hass)
+    async_setup_services(hass)
 
     await async_register_dynalite_frontend(hass)
 

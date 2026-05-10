@@ -1,9 +1,7 @@
 """Component to interface with various sensors that can be monitored."""
 
-from __future__ import annotations
-
 import asyncio
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
@@ -32,8 +30,10 @@ from homeassistant.helpers.typing import UNDEFINED, ConfigType, StateType, Undef
 from homeassistant.util import dt as dt_util
 from homeassistant.util.enum import try_parse_enum
 from homeassistant.util.hass_dict import HassKey
+from homeassistant.util.variance import ignore_variance
 
 from .const import (  # noqa: F401
+    AMBIGUOUS_UNITS,
     ATTR_LAST_RESET,
     ATTR_OPTIONS,
     ATTR_STATE_CLASS,
@@ -62,6 +62,8 @@ ENTITY_ID_FORMAT: Final = DOMAIN + ".{}"
 PLATFORM_SCHEMA = cv.PLATFORM_SCHEMA
 PLATFORM_SCHEMA_BASE = cv.PLATFORM_SCHEMA_BASE
 SCAN_INTERVAL: Final = timedelta(seconds=30)
+UPTIME_DEFAULT_TOLERANCE_SECONDS: Final = 60
+UPTIME_MIN_TOLERANCE_SECONDS: Final = 5
 
 __all__ = [
     "ATTR_LAST_RESET",
@@ -111,7 +113,7 @@ class SensorEntityDescription(EntityDescription, frozen_or_thawed=True):
     last_reset: datetime | None = None
     native_unit_of_measurement: str | None = None
     options: list[str] | None = None
-    state_class: SensorStateClass | str | None = None
+    state_class: SensorStateClass | None = None
     suggested_display_precision: int | None = None
     suggested_unit_of_measurement: str | None = None
     unit_of_measurement: None = None  # Type override, use native_unit_of_measurement
@@ -119,7 +121,7 @@ class SensorEntityDescription(EntityDescription, frozen_or_thawed=True):
 
 def _numeric_state_expected(
     device_class: SensorDeviceClass | None,
-    state_class: SensorStateClass | str | None,
+    state_class: SensorStateClass | None,
     native_unit_of_measurement: str | None,
     suggested_display_precision: int | None,
 ) -> bool:
@@ -179,6 +181,9 @@ TEMPERATURE_UNITS = {UnitOfTemperature.CELSIUS, UnitOfTemperature.FAHRENHEIT}
 class SensorEntity(Entity, cached_properties=CACHED_PROPERTIES_WITH_ATTR_):
     """Base class for sensor entities."""
 
+    # Allow per-entity override of drift tolerance
+    _attr_uptime_drift_tolerance: int = UPTIME_DEFAULT_TOLERANCE_SECONDS
+
     _entity_component_unrecorded_attributes = frozenset({ATTR_OPTIONS})
 
     entity_description: SensorEntityDescription
@@ -187,7 +192,7 @@ class SensorEntity(Entity, cached_properties=CACHED_PROPERTIES_WITH_ATTR_):
     _attr_native_unit_of_measurement: str | None
     _attr_native_value: StateType | date | datetime | Decimal = None
     _attr_options: list[str] | None
-    _attr_state_class: SensorStateClass | str | None
+    _attr_state_class: SensorStateClass | None
     _attr_state: None = None  # Subclasses of SensorEntity should not set this
     _attr_suggested_display_precision: int | None
     _attr_suggested_unit_of_measurement: str | None
@@ -200,6 +205,19 @@ class SensorEntity(Entity, cached_properties=CACHED_PROPERTIES_WITH_ATTR_):
     _sensor_option_display_precision: int | None = None
     _sensor_option_unit_of_measurement: str | None | UndefinedType = UNDEFINED
     _invalid_suggested_unit_of_measurement_reported = False
+    _get_uptime: Callable[[datetime], datetime] | None = None
+
+    def _normalize_uptime(self, current_uptime: datetime) -> datetime:
+        """Normalize uptime to suppress small drift between updates."""
+        if self._get_uptime is None:
+            drift_tolerance = max(
+                self._attr_uptime_drift_tolerance, UPTIME_MIN_TOLERANCE_SECONDS
+            )
+            self._get_uptime = ignore_variance(
+                func=lambda value: value,
+                ignored_variance=timedelta(seconds=drift_tolerance),
+            )
+        return self._get_uptime(current_uptime)
 
     @callback
     def add_to_platform_start(
@@ -314,7 +332,7 @@ class SensorEntity(Entity, cached_properties=CACHED_PROPERTIES_WITH_ATTR_):
         return _numeric_state_expected(
             try_parse_enum(SensorDeviceClass, self.device_class),
             self.state_class,
-            self.native_unit_of_measurement,
+            self.__native_unit_of_measurement_compat,
             self.suggested_display_precision,
         )
 
@@ -328,7 +346,7 @@ class SensorEntity(Entity, cached_properties=CACHED_PROPERTIES_WITH_ATTR_):
         return None
 
     @cached_property
-    def state_class(self) -> SensorStateClass | str | None:
+    def state_class(self) -> SensorStateClass | None:
         """Return the state class of this entity, if any."""
         if hasattr(self, "_attr_state_class"):
             return self._attr_state_class
@@ -360,24 +378,30 @@ class SensorEntity(Entity, cached_properties=CACHED_PROPERTIES_WITH_ATTR_):
     def _is_valid_suggested_unit(self, suggested_unit_of_measurement: str) -> bool:
         """Validate the suggested unit.
 
-        Validate that a unit converter exists for the sensor's device class and that the
-        unit converter supports both the native and the suggested units of measurement.
+        Validate that the native unit of measurement can be converted to the
+        suggested unit of measurement, either because they are the same or
+        because a unit converter supports both.
         """
-        # Make sure we can convert the units
-        if (
-            (unit_converter := UNIT_CONVERTERS.get(self.device_class)) is None
-            or self.native_unit_of_measurement not in unit_converter.VALID_UNITS
-            or suggested_unit_of_measurement not in unit_converter.VALID_UNITS
-        ):
-            if not self._invalid_suggested_unit_of_measurement_reported:
-                self._invalid_suggested_unit_of_measurement_reported = True
-                raise ValueError(
-                    f"Entity {type(self)} suggest an incorrect "
-                    f"unit of measurement: {suggested_unit_of_measurement}."
-                )
-            return False
+        # No need to check the unit converter if the units are the same
+        if self.__native_unit_of_measurement_compat == suggested_unit_of_measurement:
+            return True
 
-        return True
+        # Make sure there is a unit converter and it supports both units
+        if (
+            (unit_converter := UNIT_CONVERTERS.get(self.device_class))
+            and self.__native_unit_of_measurement_compat in unit_converter.VALID_UNITS
+            and suggested_unit_of_measurement in unit_converter.VALID_UNITS
+        ):
+            return True
+
+        # Report invalid suggested unit only once per entity
+        if not self._invalid_suggested_unit_of_measurement_reported:
+            self._invalid_suggested_unit_of_measurement_reported = True
+            raise ValueError(
+                f"Entity {type(self)} suggest an incorrect "
+                f"unit of measurement: {suggested_unit_of_measurement}."
+            )
+        return False
 
     def _get_initial_suggested_unit(self) -> str | UndefinedType:
         """Return the initial unit."""
@@ -387,7 +411,7 @@ class SensorEntity(Entity, cached_properties=CACHED_PROPERTIES_WITH_ATTR_):
         if suggested_unit_of_measurement is None:
             # Fallback to unit suggested by the unit conversion rules from device class
             suggested_unit_of_measurement = self.hass.config.units.get_converted_unit(
-                self.device_class, self.native_unit_of_measurement
+                self.device_class, self.__native_unit_of_measurement_compat
             )
 
         if suggested_unit_of_measurement is None and (
@@ -396,7 +420,7 @@ class SensorEntity(Entity, cached_properties=CACHED_PROPERTIES_WITH_ATTR_):
             # If the device class is not known by the unit system but has a unit converter,
             # fall back to the unit suggested by the unit converter's unit class.
             suggested_unit_of_measurement = self.hass.config.units.get_converted_unit(
-                unit_converter.UNIT_CLASS, self.native_unit_of_measurement
+                unit_converter.UNIT_CLASS, self.__native_unit_of_measurement_compat
             )
 
         if suggested_unit_of_measurement is None:
@@ -468,6 +492,20 @@ class SensorEntity(Entity, cached_properties=CACHED_PROPERTIES_WITH_ATTR_):
             return self.entity_description.native_unit_of_measurement
         return None
 
+    @final
+    @property
+    def __native_unit_of_measurement_compat(self) -> str | None:
+        """Handle wrong character coding in unit provided by integrations.
+
+        SensorEntity should read the sensor's native unit through this property instead
+        of through native_unit_of_measurement.
+        """
+        native_unit_of_measurement = self.native_unit_of_measurement
+        return AMBIGUOUS_UNITS.get(
+            native_unit_of_measurement,
+            native_unit_of_measurement,
+        )
+
     @cached_property
     def suggested_unit_of_measurement(self) -> str | None:
         """Return the unit which should be used for the sensor's state.
@@ -503,7 +541,7 @@ class SensorEntity(Entity, cached_properties=CACHED_PROPERTIES_WITH_ATTR_):
         if self._sensor_option_unit_of_measurement is not UNDEFINED:
             return self._sensor_option_unit_of_measurement
 
-        native_unit_of_measurement = self.native_unit_of_measurement
+        native_unit_of_measurement = self.__native_unit_of_measurement_compat
 
         # Second priority, for non registered entities: unit suggested by integration
         if not self.registry_entry and (
@@ -523,7 +561,9 @@ class SensorEntity(Entity, cached_properties=CACHED_PROPERTIES_WITH_ATTR_):
         # Fourth priority: Unit translation
         if (translation_key := self._unit_of_measurement_translation_key) and (
             unit_of_measurement
-            := self.platform.default_language_platform_translations.get(translation_key)
+            := self.platform_data.default_language_platform_translations.get(
+                translation_key
+            )
         ):
             if native_unit_of_measurement is not None:
                 raise ValueError(
@@ -541,7 +581,7 @@ class SensorEntity(Entity, cached_properties=CACHED_PROPERTIES_WITH_ATTR_):
     @override
     def state(self) -> Any:
         """Return the state of the sensor and perform unit conversions, if needed."""
-        native_unit_of_measurement = self.native_unit_of_measurement
+        native_unit_of_measurement = self.__native_unit_of_measurement_compat
         unit_of_measurement = self.unit_of_measurement
         value = self.native_value
         # For the sake of validation, we can ignore custom device classes
@@ -587,10 +627,14 @@ class SensorEntity(Entity, cached_properties=CACHED_PROPERTIES_WITH_ATTR_):
 
         # Checks below only apply if there is a value
         if value is None:
+            if device_class is SensorDeviceClass.UPTIME:
+                # Reset baseline so the first uptime after unavailable is not
+                # compared against a stale value.
+                self._get_uptime = None
             return None
 
         # Received a datetime
-        if device_class is SensorDeviceClass.TIMESTAMP:
+        if device_class in (SensorDeviceClass.TIMESTAMP, SensorDeviceClass.UPTIME):
             try:
                 # We cast the value, to avoid using isinstance, but satisfy
                 # typechecking. The errors are guarded in this try.
@@ -604,10 +648,13 @@ class SensorEntity(Entity, cached_properties=CACHED_PROPERTIES_WITH_ATTR_):
                 if value.tzinfo != UTC:
                     value = value.astimezone(UTC)
 
+                if device_class is SensorDeviceClass.UPTIME:
+                    value = self._normalize_uptime(value)
+
                 return value.isoformat(timespec="seconds")
             except (AttributeError, OverflowError, TypeError) as err:
                 raise ValueError(
-                    f"Invalid datetime: {self.entity_id} has timestamp device class "
+                    f"Invalid datetime: {self.entity_id} has {device_class.value} device class "
                     f"but provides state {value}:{type(value)} resulting in '{err}'"
                 ) from err
 
@@ -763,7 +810,8 @@ class SensorEntity(Entity, cached_properties=CACHED_PROPERTIES_WITH_ATTR_):
             return display_precision
 
         default_unit_of_measurement = (
-            self.suggested_unit_of_measurement or self.native_unit_of_measurement
+            self.suggested_unit_of_measurement
+            or self.__native_unit_of_measurement_compat
         )
         if default_unit_of_measurement is None:
             return display_precision
@@ -838,16 +886,25 @@ class SensorEntity(Entity, cached_properties=CACHED_PROPERTIES_WITH_ATTR_):
         """Return a custom unit, or UNDEFINED if not compatible with the native unit."""
         assert self.registry_entry
         if (
-            (sensor_options := self.registry_entry.options.get(primary_key))
-            and secondary_key in sensor_options
-            and (device_class := self.device_class) in UNIT_CONVERTERS
-            and self.native_unit_of_measurement
-            in UNIT_CONVERTERS[device_class].VALID_UNITS
-            and (custom_unit := sensor_options[secondary_key])
-            in UNIT_CONVERTERS[device_class].VALID_UNITS
+            sensor_options := self.registry_entry.options.get(primary_key)
+        ) is None or secondary_key not in sensor_options:
+            return UNDEFINED
+
+        if (device_class := self.device_class) not in UNIT_CONVERTERS:
+            return UNDEFINED
+
+        if (
+            self.__native_unit_of_measurement_compat
+            not in UNIT_CONVERTERS[device_class].VALID_UNITS
         ):
-            return cast(str, custom_unit)
-        return UNDEFINED
+            return UNDEFINED
+
+        if (custom_unit := sensor_options[secondary_key]) not in UNIT_CONVERTERS[
+            device_class
+        ].VALID_UNITS:
+            return UNDEFINED
+
+        return cast(str, custom_unit)
 
     @callback
     def async_registry_entry_updated(self) -> None:

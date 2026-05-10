@@ -1,7 +1,5 @@
 """The iCloud component."""
 
-from __future__ import annotations
-
 from typing import Any
 
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
@@ -20,7 +18,7 @@ from .const import (
     STORAGE_KEY,
     STORAGE_VERSION,
 )
-from .services import register_services
+from .services import async_setup_services
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -28,7 +26,7 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up iCloud integration."""
 
-    register_services(hass)
+    async_setup_services(hass)
 
     return True
 

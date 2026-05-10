@@ -1,7 +1,5 @@
 """Creates HomeWizard Number entities."""
 
-from __future__ import annotations
-
 from homeassistant.components.number import NumberEntity
 from homeassistant.const import PERCENTAGE, EntityCategory
 from homeassistant.core import HomeAssistant
@@ -20,7 +18,7 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up numbers for device."""
-    if entry.runtime_data.data.device.supports_state():
+    if entry.runtime_data.data.device.supports_led_brightness():
         async_add_entities([HWEnergyNumberEntity(entry.runtime_data)])
 
 

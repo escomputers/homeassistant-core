@@ -1,6 +1,8 @@
 """Expose image_upload as media sources."""
 
-from __future__ import annotations
+import pathlib
+
+from propcache.api import cached_property
 
 from homeassistant.components.media_player import BrowseError, MediaClass
 from homeassistant.components.media_source import (
@@ -12,7 +14,7 @@ from homeassistant.components.media_source import (
 )
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN
+from .const import DOMAIN, FOLDER_IMAGE
 
 
 async def async_get_media_source(hass: HomeAssistant) -> ImageUploadMediaSource:
@@ -23,12 +25,17 @@ async def async_get_media_source(hass: HomeAssistant) -> ImageUploadMediaSource:
 class ImageUploadMediaSource(MediaSource):
     """Provide images as media sources."""
 
-    name: str = "Image Upload"
+    name: str = "Image upload"
 
     def __init__(self, hass: HomeAssistant) -> None:
         """Initialize ImageMediaSource."""
         super().__init__(DOMAIN)
         self.hass = hass
+
+    @cached_property
+    def image_folder(self) -> pathlib.Path:
+        """Return the image folder path."""
+        return pathlib.Path(self.hass.config.path(FOLDER_IMAGE))
 
     async def async_resolve_media(self, item: MediaSourceItem) -> PlayMedia:
         """Resolve media to a url."""
@@ -38,7 +45,9 @@ class ImageUploadMediaSource(MediaSource):
             raise Unresolvable(f"Could not resolve media item: {item.identifier}")
 
         return PlayMedia(
-            f"/api/image/serve/{image['id']}/original", image["content_type"]
+            f"/api/image/serve/{image['id']}/original",
+            image["content_type"],
+            path=self.image_folder / item.identifier / "original",
         )
 
     async def async_browse_media(
@@ -68,7 +77,7 @@ class ImageUploadMediaSource(MediaSource):
             identifier=None,
             media_class=MediaClass.APP,
             media_content_type="",
-            title="Image Upload",
+            title="Image upload",
             can_play=False,
             can_expand=True,
             children_media_class=MediaClass.IMAGE,

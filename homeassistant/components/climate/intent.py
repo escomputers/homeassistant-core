@@ -1,7 +1,5 @@
 """Intents for the climate integration."""
 
-from __future__ import annotations
-
 import voluptuous as vol
 
 from homeassistant.const import ATTR_ENTITY_ID
@@ -89,7 +87,6 @@ class SetTemperatureIntent(intent.IntentHandler):
         )
 
         response = intent_obj.create_response()
-        response.response_type = intent.IntentResponseType.ACTION_DONE
         response.async_set_results(
             success_results=[
                 intent.IntentResponseTarget(

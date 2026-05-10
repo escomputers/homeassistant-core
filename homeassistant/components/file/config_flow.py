@@ -1,7 +1,5 @@
 """Config flow for file integration."""
 
-from __future__ import annotations
-
 from copy import deepcopy
 from typing import Any
 
@@ -11,7 +9,7 @@ from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
-    OptionsFlow,
+    OptionsFlowWithReload,
 )
 from homeassistant.const import (
     CONF_FILE_PATH,
@@ -131,7 +129,7 @@ class FileConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         return await self._async_handle_step(Platform.SENSOR.value, user_input)
 
 
-class FileOptionsFlowHandler(OptionsFlow):
+class FileOptionsFlowHandler(OptionsFlowWithReload):
     """Handle File options."""
 
     async def async_step_init(

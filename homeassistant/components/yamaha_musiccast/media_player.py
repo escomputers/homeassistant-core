@@ -1,7 +1,5 @@
 """Implementation of the musiccast media player."""
 
-from __future__ import annotations
-
 import contextlib
 import logging
 from typing import Any
@@ -11,6 +9,7 @@ from aiomusiccast.features import ZoneFeature
 
 from homeassistant.components import media_source
 from homeassistant.components.media_player import (
+    BrowseError,
     BrowseMedia,
     MediaClass,
     MediaPlayerEntity,
@@ -20,7 +19,6 @@ from homeassistant.components.media_player import (
     RepeatMode,
     async_process_play_media_url,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import Entity
@@ -37,7 +35,7 @@ from .const import (
     MEDIA_CLASS_MAPPING,
     NULL_GROUP,
 )
-from .coordinator import MusicCastDataUpdateCoordinator
+from .coordinator import MusicCastConfigEntry
 from .entity import MusicCastDeviceEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,11 +52,11 @@ MUSIC_PLAYER_BASE_SUPPORT = (
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: MusicCastConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up MusicCast sensor based on a config entry."""
-    coordinator: MusicCastDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
 
     name = coordinator.data.network_name
 
@@ -79,6 +77,7 @@ class MusicCastMediaPlayer(MusicCastDeviceEntity, MediaPlayerEntity):
 
     _attr_media_content_type = MediaType.MUSIC
     _attr_should_poll = False
+    _attr_translation_key = "zone"
 
     def __init__(self, zone_id, name, entry_id, coordinator):
         """Initialize the musiccast device."""
@@ -372,7 +371,7 @@ class MusicCastMediaPlayer(MusicCastDeviceEntity, MediaPlayerEntity):
         ]
 
         if add_media_source:
-            with contextlib.suppress(media_source.BrowseError):
+            with contextlib.suppress(BrowseError):
                 item = await media_source.async_browse_media(
                     self.hass,
                     None,
@@ -612,11 +611,14 @@ class MusicCastMediaPlayer(MusicCastDeviceEntity, MediaPlayerEntity):
 
     def get_all_mc_entities(self) -> list[MusicCastMediaPlayer]:
         """Return all media player entities of the musiccast system."""
+        entries: list[MusicCastConfigEntry] = (
+            self.hass.config_entries.async_loaded_entries(DOMAIN)
+        )
         entities = []
-        for coordinator in self.hass.data[DOMAIN].values():
+        for entry in entries:
             entities += [
                 entity
-                for entity in coordinator.entities
+                for entity in entry.runtime_data.entities
                 if isinstance(entity, MusicCastMediaPlayer)
             ]
         return entities

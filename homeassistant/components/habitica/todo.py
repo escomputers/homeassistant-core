@@ -1,9 +1,8 @@
 """Todo platform for the Habitica integration."""
 
-from __future__ import annotations
-
 from enum import StrEnum
 import logging
+import math
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -281,7 +280,7 @@ class HabiticaTodosListEntity(BaseHabiticaListEntity):
         return sorted(
             tasks,
             key=lambda task: (
-                float("inf")
+                math.inf
                 if (uid := UUID(task.uid))
                 not in (tasks_order := self.coordinator.data.user.tasksOrder.todos)
                 else tasks_order.index(uid)
@@ -367,7 +366,7 @@ class HabiticaDailiesListEntity(BaseHabiticaListEntity):
         return sorted(
             tasks,
             key=lambda task: (
-                float("inf")
+                math.inf
                 if (uid := UUID(task.uid))
                 not in (tasks_order := self.coordinator.data.user.tasksOrder.dailys)
                 else tasks_order.index(uid)

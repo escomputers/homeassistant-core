@@ -1,7 +1,5 @@
 """Support for HERE travel time sensors."""
 
-from __future__ import annotations
-
 from collections.abc import Mapping
 from datetime import timedelta
 from typing import Any
@@ -44,7 +42,7 @@ from .coordinator import (
     HERETransitDataUpdateCoordinator,
 )
 
-SCAN_INTERVAL = timedelta(minutes=5)
+SCAN_INTERVAL = timedelta(minutes=30)
 
 
 def sensor_descriptions(travel_mode: str) -> tuple[SensorEntityDescription, ...]:
@@ -55,14 +53,18 @@ def sensor_descriptions(travel_mode: str) -> tuple[SensorEntityDescription, ...]
             icon=ICONS.get(travel_mode, ICON_CAR),
             key=ATTR_DURATION,
             state_class=SensorStateClass.MEASUREMENT,
-            native_unit_of_measurement=UnitOfTime.MINUTES,
+            device_class=SensorDeviceClass.DURATION,
+            native_unit_of_measurement=UnitOfTime.SECONDS,
+            suggested_unit_of_measurement=UnitOfTime.MINUTES,
         ),
         SensorEntityDescription(
             translation_key="duration_in_traffic",
             icon=ICONS.get(travel_mode, ICON_CAR),
             key=ATTR_DURATION_IN_TRAFFIC,
             state_class=SensorStateClass.MEASUREMENT,
-            native_unit_of_measurement=UnitOfTime.MINUTES,
+            device_class=SensorDeviceClass.DURATION,
+            native_unit_of_measurement=UnitOfTime.SECONDS,
+            suggested_unit_of_measurement=UnitOfTime.MINUTES,
         ),
         SensorEntityDescription(
             translation_key="distance",

@@ -1,8 +1,9 @@
 # serializer version: 1
 # name: test_switch_platform[switch.pinecil_animation_loop-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
@@ -20,6 +21,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Animation loop',
     'options': dict({
     }),
     'original_device_class': None,
@@ -47,10 +49,61 @@
     'state': 'on',
   })
 # ---
+# name: test_switch_platform[switch.pinecil_boost-entry]
+  EntityRegistryEntrySnapshot({
+    'aliases': list([
+      None,
+    ]),
+    'area_id': None,
+    'capabilities': None,
+    'config_entry_id': <ANY>,
+    'config_subentry_id': <ANY>,
+    'device_class': None,
+    'device_id': <ANY>,
+    'disabled_by': None,
+    'domain': 'switch',
+    'entity_category': <EntityCategory.CONFIG: 'config'>,
+    'entity_id': 'switch.pinecil_boost',
+    'has_entity_name': True,
+    'hidden_by': None,
+    'icon': None,
+    'id': <ANY>,
+    'labels': set({
+    }),
+    'name': None,
+    'object_id_base': 'Boost',
+    'options': dict({
+    }),
+    'original_device_class': None,
+    'original_icon': None,
+    'original_name': 'Boost',
+    'platform': 'iron_os',
+    'previous_unique_id': None,
+    'suggested_object_id': None,
+    'supported_features': 0,
+    'translation_key': <IronOSSwitch.BOOST: 'boost'>,
+    'unique_id': 'c0:ff:ee:c0:ff:ee_boost',
+    'unit_of_measurement': None,
+  })
+# ---
+# name: test_switch_platform[switch.pinecil_boost-state]
+  StateSnapshot({
+    'attributes': ReadOnlyDict({
+      'friendly_name': 'Pinecil Boost',
+    }),
+    'context': <ANY>,
+    'entity_id': 'switch.pinecil_boost',
+    'last_changed': <ANY>,
+    'last_reported': <ANY>,
+    'last_updated': <ANY>,
+    'state': 'on',
+  })
+# ---
 # name: test_switch_platform[switch.pinecil_calibrate_cjc-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
@@ -68,6 +121,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Calibrate CJC',
     'options': dict({
     }),
     'original_device_class': None,
@@ -97,8 +151,9 @@
 # ---
 # name: test_switch_platform[switch.pinecil_cool_down_screen_flashing-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
@@ -116,6 +171,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Cool down screen flashing',
     'options': dict({
     }),
     'original_device_class': None,
@@ -145,8 +201,9 @@
 # ---
 # name: test_switch_platform[switch.pinecil_detailed_idle_screen-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
@@ -164,6 +221,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Detailed idle screen',
     'options': dict({
     }),
     'original_device_class': None,
@@ -193,8 +251,9 @@
 # ---
 # name: test_switch_platform[switch.pinecil_detailed_solder_screen-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
@@ -212,6 +271,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Detailed solder screen',
     'options': dict({
     }),
     'original_device_class': None,
@@ -241,8 +301,9 @@
 # ---
 # name: test_switch_platform[switch.pinecil_invert_screen-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
@@ -260,6 +321,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Invert screen',
     'options': dict({
     }),
     'original_device_class': None,
@@ -289,8 +351,9 @@
 # ---
 # name: test_switch_platform[switch.pinecil_swap_buttons-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': None,
     'config_entry_id': <ANY>,
@@ -308,6 +371,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Swap +/- buttons',
     'options': dict({
     }),
     'original_device_class': None,

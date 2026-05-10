@@ -1,7 +1,5 @@
 """Support for monitoring the Deluge BitTorrent client API."""
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -109,6 +107,18 @@ SENSOR_TYPES: tuple[DelugeSensorEntityDescription, ...] = (
         value=lambda data: get_state(
             data, DelugeSensorType.PROTOCOL_TRAFFIC_DOWNLOAD_SPEED_SENSOR.value
         ),
+    ),
+    DelugeSensorEntityDescription(
+        key=DelugeSensorType.DOWNLOADING_COUNT_SENSOR.value,
+        translation_key=DelugeSensorType.DOWNLOADING_COUNT_SENSOR.value,
+        state_class=SensorStateClass.TOTAL,
+        value=lambda data: data[DelugeSensorType.DOWNLOADING_COUNT_SENSOR.value],
+    ),
+    DelugeSensorEntityDescription(
+        key=DelugeSensorType.SEEDING_COUNT_SENSOR.value,
+        translation_key=DelugeSensorType.SEEDING_COUNT_SENSOR.value,
+        state_class=SensorStateClass.TOTAL,
+        value=lambda data: data[DelugeSensorType.SEEDING_COUNT_SENSOR.value],
     ),
 )
 

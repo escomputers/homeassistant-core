@@ -2,13 +2,12 @@
 
 import voluptuous as vol
 
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 
 from .const import (
     ATTR_SPEED,
-    DATA_COORDINATOR,
     DEFAULT_SPEED_LIMIT,
     DOMAIN,
     SERVICE_PAUSE,
@@ -30,7 +29,7 @@ def _get_coordinator(call: ServiceCall) -> NZBGetDataUpdateCoordinator:
             translation_domain=DOMAIN,
             translation_key="invalid_config_entry",
         )
-    return call.hass.data[DOMAIN][entries[0].entry_id][DATA_COORDINATOR]
+    return entries[0].runtime_data
 
 
 def pause(call: ServiceCall) -> None:
@@ -48,7 +47,8 @@ def set_speed(call: ServiceCall) -> None:
     _get_coordinator(call).nzbget.rate(call.data[ATTR_SPEED])
 
 
-def async_register_services(hass: HomeAssistant) -> None:
+@callback
+def async_setup_services(hass: HomeAssistant) -> None:
     """Register integration-level services."""
 
     hass.services.async_register(DOMAIN, SERVICE_PAUSE, pause, schema=vol.Schema({}))

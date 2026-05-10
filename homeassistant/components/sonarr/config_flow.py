@@ -1,7 +1,5 @@
 """Config flow for Sonarr."""
 
-from __future__ import annotations
-
 from collections.abc import Mapping
 import logging
 from typing import Any
@@ -17,7 +15,7 @@ from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
-    OptionsFlow,
+    OptionsFlowWithReload,
 )
 from homeassistant.const import CONF_API_KEY, CONF_URL, CONF_VERIFY_SSL
 from homeassistant.core import HomeAssistant, callback
@@ -152,7 +150,7 @@ class SonarrConfigFlow(ConfigFlow, domain=DOMAIN):
         return data_schema
 
 
-class SonarrOptionsFlowHandler(OptionsFlow):
+class SonarrOptionsFlowHandler(OptionsFlowWithReload):
     """Handle Sonarr client options."""
 
     async def async_step_init(

@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from homeassistant.components import stt
-from homeassistant.components.wyoming import DOMAIN
 from homeassistant.components.wyoming.devices import SatelliteDevice
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -19,6 +18,7 @@ from . import (
     SATELLITE_INFO,
     STT_INFO,
     TTS_INFO,
+    TTS_STREAMING_INFO,
     WAKE_WORD_INFO,
 )
 
@@ -149,6 +149,20 @@ async def init_wyoming_tts(
 
 
 @pytest.fixture
+async def init_wyoming_streaming_tts(
+    hass: HomeAssistant, tts_config_entry: ConfigEntry
+) -> ConfigEntry:
+    """Initialize Wyoming streaming TTS."""
+    with patch(
+        "homeassistant.components.wyoming.data.load_wyoming_info",
+        return_value=TTS_STREAMING_INFO,
+    ):
+        await hass.config_entries.async_setup(tts_config_entry.entry_id)
+
+    return tts_config_entry
+
+
+@pytest.fixture
 async def init_wyoming_wake_word(
     hass: HomeAssistant, wake_word_config_entry: ConfigEntry
 ) -> ConfigEntry:
@@ -239,4 +253,4 @@ async def satellite_device(
     hass: HomeAssistant, init_satellite, satellite_config_entry: ConfigEntry
 ) -> SatelliteDevice:
     """Get a satellite device fixture."""
-    return hass.data[DOMAIN][satellite_config_entry.entry_id].device
+    return satellite_config_entry.runtime_data.device

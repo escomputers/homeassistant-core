@@ -1,7 +1,5 @@
 """The repairs integration."""
 
-from __future__ import annotations
-
 from typing import Any
 
 import voluptuous as vol
@@ -89,8 +87,6 @@ class RepairsFlowManager(data_entry_flow.FlowManager):
         """
         if result.get("type") != data_entry_flow.FlowResultType.ABORT:
             ir.async_delete_issue(self.hass, flow.handler, flow.init_data["issue_id"])
-        if "result" not in result:
-            result["result"] = None
         return result
 
 

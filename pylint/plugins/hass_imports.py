@@ -1,7 +1,5 @@
 """Plugin for checking imports."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 import re
 
@@ -20,18 +18,6 @@ class ObsoleteImportMatch:
 
 _OBSOLETE_IMPORT: dict[str, list[ObsoleteImportMatch]] = {
     "functools": [
-        ObsoleteImportMatch(
-            reason="replaced by propcache.api.cached_property",
-            constant=re.compile(r"^cached_property$"),
-        ),
-    ],
-    "homeassistant.backports.enum": [
-        ObsoleteImportMatch(
-            reason="We can now use the Python 3.11 provided enum.StrEnum instead",
-            constant=re.compile(r"^StrEnum$"),
-        ),
-    ],
-    "homeassistant.backports.functools": [
         ObsoleteImportMatch(
             reason="replaced by propcache.api.cached_property",
             constant=re.compile(r"^cached_property$"),
@@ -138,28 +124,12 @@ _OBSOLETE_IMPORT: dict[str, list[ObsoleteImportMatch]] = {
 }
 
 _IGNORE_ROOT_IMPORT = (
-    "assist_pipeline",
-    "automation",
     "bluetooth",
-    "camera",
-    "cast",
-    "device_automation",
     "device_tracker",
-    "ffmpeg",
-    "ffmpeg_motion",
-    "google_assistant",
-    "hardware",
     "homeassistant",
     "homeassistant_hardware",
     "http",
-    "manual",
-    "plex",
     "recorder",
-    "rest",
-    "script",
-    "sensor",
-    "stream",
-    "zha",
 )
 
 
@@ -324,7 +294,7 @@ class HassImportsFormatChecker(BaseChecker):
 
         # Check for `from homeassistant.components.other import DOMAIN`
         for name, alias in node.names:
-            if name == "DOMAIN" and (alias is None or alias == "DOMAIN"):
+            if name == "DOMAIN" and (alias is None or not alias.endswith("_DOMAIN")):
                 self.add_message(
                     "hass-import-constant-alias",
                     node=node,

@@ -1,7 +1,5 @@
 """Support for Buienradar.nl weather service."""
 
-from __future__ import annotations
-
 import logging
 
 from buienradar.constants import (
@@ -168,7 +166,6 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
         key="windazimuth",
         translation_key="windazimuth",
         native_unit_of_measurement=DEGREE,
-        icon="mdi:compass-outline",
         device_class=SensorDeviceClass.WIND_DIRECTION,
         state_class=SensorStateClass.MEASUREMENT_ANGLE,
     ),

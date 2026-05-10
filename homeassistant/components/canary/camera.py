@@ -1,7 +1,5 @@
 """Support for Canary camera."""
 
-from __future__ import annotations
-
 from datetime import timedelta
 import logging
 from typing import Final
@@ -68,8 +66,7 @@ async def async_setup_entry(
             for location_id, location in coordinator.data["locations"].items()
             for device in location.devices
             if device.is_online
-        ),
-        True,
+        )
     )
 
 

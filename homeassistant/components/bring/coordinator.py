@@ -1,7 +1,5 @@
 """DataUpdateCoordinator for the Bring! integration."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from datetime import timedelta
 import logging
@@ -205,6 +203,7 @@ class BringActivityCoordinator(BringBaseCoordinator[dict[str, BringActivityData]
 
     async def _async_update_data(self) -> dict[str, BringActivityData]:
         """Fetch activity data from bring."""
+        self.lists = self.coordinator.lists
 
         list_dict: dict[str, BringActivityData] = {}
         for lst in self.lists:

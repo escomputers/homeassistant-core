@@ -1,7 +1,5 @@
 """Sensor platform for Ista EcoTrend integration."""
 
-from __future__ import annotations
-
 import asyncio
 from dataclasses import dataclass
 import datetime
@@ -34,6 +32,7 @@ from homeassistant.helpers.device_registry import (
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util.unit_conversion import EnergyConverter, VolumeConverter
 
 from .const import DOMAIN
 from .coordinator import IstaConfigEntry, IstaCoordinator
@@ -49,6 +48,7 @@ class IstaSensorEntityDescription(SensorEntityDescription):
     """Ista EcoTrend Sensor Description."""
 
     consumption_type: IstaConsumptionType
+    unit_class: str | None = None
     value_type: IstaValueType | None = None
 
 
@@ -84,6 +84,7 @@ SENSOR_DESCRIPTIONS: tuple[IstaSensorEntityDescription, ...] = (
         suggested_display_precision=1,
         consumption_type=IstaConsumptionType.HEATING,
         value_type=IstaValueType.ENERGY,
+        unit_class=EnergyConverter.UNIT_CLASS,
     ),
     IstaSensorEntityDescription(
         key=IstaSensorEntity.HEATING_COST,
@@ -104,6 +105,7 @@ SENSOR_DESCRIPTIONS: tuple[IstaSensorEntityDescription, ...] = (
         state_class=SensorStateClass.TOTAL,
         suggested_display_precision=1,
         consumption_type=IstaConsumptionType.HOT_WATER,
+        unit_class=VolumeConverter.UNIT_CLASS,
     ),
     IstaSensorEntityDescription(
         key=IstaSensorEntity.HOT_WATER_ENERGY,
@@ -114,6 +116,7 @@ SENSOR_DESCRIPTIONS: tuple[IstaSensorEntityDescription, ...] = (
         suggested_display_precision=1,
         consumption_type=IstaConsumptionType.HOT_WATER,
         value_type=IstaValueType.ENERGY,
+        unit_class=EnergyConverter.UNIT_CLASS,
     ),
     IstaSensorEntityDescription(
         key=IstaSensorEntity.HOT_WATER_COST,
@@ -135,6 +138,7 @@ SENSOR_DESCRIPTIONS: tuple[IstaSensorEntityDescription, ...] = (
         suggested_display_precision=1,
         entity_registry_enabled_default=False,
         consumption_type=IstaConsumptionType.WATER,
+        unit_class=VolumeConverter.UNIT_CLASS,
     ),
     IstaSensorEntityDescription(
         key=IstaSensorEntity.WATER_COST,
@@ -276,6 +280,7 @@ class IstaSensor(CoordinatorEntity[IstaCoordinator], SensorEntity):
                 "name": f"{self.device_entry.name} {self.name}",
                 "source": DOMAIN,
                 "statistic_id": statistic_id,
+                "unit_class": self.entity_description.unit_class,
                 "unit_of_measurement": self.entity_description.native_unit_of_measurement,
             }
             if statistics:

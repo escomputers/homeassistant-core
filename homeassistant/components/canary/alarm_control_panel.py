@@ -1,7 +1,5 @@
 """Support for Canary alarm."""
 
-from __future__ import annotations
-
 from typing import Any
 
 from canary.const import LOCATION_MODE_AWAY, LOCATION_MODE_HOME, LOCATION_MODE_NIGHT
@@ -31,7 +29,7 @@ async def async_setup_entry(
         for location_id, location in coordinator.data["locations"].items()
     ]
 
-    async_add_entities(alarms, True)
+    async_add_entities(alarms)
 
 
 class CanaryAlarm(

@@ -1,6 +1,4 @@
-"""Provides device triggers for KNX."""
-
-from __future__ import annotations
+"""Provide device triggers for KNX."""
 
 from typing import Any, Final
 

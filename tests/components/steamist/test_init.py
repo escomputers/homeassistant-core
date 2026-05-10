@@ -1,7 +1,5 @@
 """Tests for the steamist component."""
 
-from __future__ import annotations
-
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from discovery30303 import AIODiscovery30303
@@ -42,6 +40,7 @@ def mock_single_broadcast_address():
         yield
 
 
+@pytest.mark.usefixtures("mock_aio_discovery")
 async def test_config_entry_reload(hass: HomeAssistant) -> None:
     """Test that a config entry can be reloaded."""
     _, config_entry = await _async_setup_entry_with_status(
@@ -52,6 +51,7 @@ async def test_config_entry_reload(hass: HomeAssistant) -> None:
     assert config_entry.state is ConfigEntryState.NOT_LOADED
 
 
+@pytest.mark.usefixtures("mock_aio_discovery")
 async def test_config_entry_retry_later(hass: HomeAssistant) -> None:
     """Test that a config entry retry on connection error."""
     config_entry = MockConfigEntry(

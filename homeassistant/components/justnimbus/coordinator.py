@@ -1,7 +1,5 @@
 """JustNimbus coordinator."""
 
-from __future__ import annotations
-
 from datetime import timedelta
 import logging
 
@@ -16,13 +14,17 @@ from .const import CONF_ZIP_CODE, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
+type JustNimbusConfigEntry = ConfigEntry[JustNimbusCoordinator]
+
 
 class JustNimbusCoordinator(DataUpdateCoordinator[justnimbus.JustNimbusModel]):
     """Data update coordinator."""
 
-    config_entry: ConfigEntry
+    config_entry: JustNimbusConfigEntry
 
-    def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
+    def __init__(
+        self, hass: HomeAssistant, config_entry: JustNimbusConfigEntry
+    ) -> None:
         """Initialize the coordinator."""
         super().__init__(
             hass,

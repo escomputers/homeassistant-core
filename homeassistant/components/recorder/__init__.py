@@ -1,7 +1,5 @@
 """Support for recording details."""
 
-from __future__ import annotations
-
 import logging
 from typing import Any
 
@@ -25,7 +23,6 @@ from homeassistant.helpers.integration_platform import (
 )
 from homeassistant.helpers.recorder import DATA_INSTANCE
 from homeassistant.helpers.typing import ConfigType
-from homeassistant.loader import bind_hass
 from homeassistant.util.event_type import EventType
 
 # Pre-import backup to avoid it being imported
@@ -45,7 +42,7 @@ from .const import (  # noqa: F401
     SupportedDialect,
 )
 from .core import Recorder
-from .services import async_register_services
+from .services import async_setup_services
 from .tasks import AddRecorderPlatformTask
 from .util import get_instance
 
@@ -128,7 +125,6 @@ CONFIG_SCHEMA = vol.Schema(
 )
 
 
-@bind_hass
 def is_entity_recorded(hass: HomeAssistant, entity_id: str) -> bool:
     """Check if an entity is being recorded.
 
@@ -174,7 +170,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     instance.async_initialize()
     instance.async_register()
     instance.start()
-    async_register_services(hass, instance)
+    async_setup_services(hass)
     websocket_api.async_setup(hass)
 
     await _async_setup_integration_platform(hass, instance)

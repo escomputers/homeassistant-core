@@ -1,7 +1,5 @@
 """The Mikrotik router class."""
 
-from __future__ import annotations
-
 from datetime import timedelta
 import logging
 import ssl
@@ -83,12 +81,12 @@ class MikrotikData:
     @property
     def arp_enabled(self) -> bool:
         """Return arp_ping option setting."""
-        return self.config_entry.options.get(CONF_ARP_PING, False)
+        return self.config_entry.options.get(CONF_ARP_PING, False)  # type: ignore[no-any-return]
 
     @property
     def force_dhcp(self) -> bool:
         """Return force_dhcp option setting."""
-        return self.config_entry.options.get(CONF_FORCE_DHCP, False)
+        return self.config_entry.options.get(CONF_FORCE_DHCP, False)  # type: ignore[no-any-return]
 
     def get_info(self, param: str) -> str:
         """Return device model name."""

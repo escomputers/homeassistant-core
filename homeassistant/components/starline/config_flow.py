@@ -1,7 +1,5 @@
 """Config flow to configure StarLine component."""
 
-from __future__ import annotations
-
 from starline import StarlineAuth
 import voluptuous as vol
 
@@ -117,6 +115,9 @@ class StarlineFlowHandler(ConfigFlow, domain=DOMAIN):
                 }
             ),
             errors=errors,
+            description_placeholders={
+                "developer_account_url": "https://my.starline.ru/developer",
+            },
         )
 
     @callback

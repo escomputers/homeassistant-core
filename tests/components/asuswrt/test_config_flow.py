@@ -3,7 +3,8 @@
 from socket import gaierror
 from unittest.mock import patch
 
-from pyasuswrt import AsusWrtError
+from asusrouter import AsusRouterError
+from asusrouter.modules.identity import AsusDevice
 import pytest
 
 from homeassistant.components.asuswrt.const import (
@@ -88,7 +89,7 @@ async def test_user_legacy(
 ) -> None:
     """Test user config."""
     flow_result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": SOURCE_USER, "show_advanced_options": True}
+        DOMAIN, context={"source": SOURCE_USER}
     )
     assert flow_result["type"] is FlowResultType.FORM
     assert flow_result["step_id"] == "user"
@@ -123,12 +124,16 @@ async def test_user_http(
 ) -> None:
     """Test user config http."""
     flow_result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": SOURCE_USER, "show_advanced_options": True}
+        DOMAIN, context={"source": SOURCE_USER}
     )
     assert flow_result["type"] is FlowResultType.FORM
     assert flow_result["step_id"] == "user"
 
-    connect_http.return_value.mac = unique_id
+    connect_http.return_value.async_get_identity.return_value = AsusDevice(
+        mac=unique_id,
+        model="FAKE_MODEL",
+        firmware="FAKE_FIRMWARE",
+    )
 
     # test with all provided
     result = await hass.config_entries.flow.async_configure(
@@ -149,7 +154,7 @@ async def test_error_pwd_required(hass: HomeAssistant, config) -> None:
     config_data = {k: v for k, v in config.items() if k != CONF_PASSWORD}
     result = await hass.config_entries.flow.async_init(
         DOMAIN,
-        context={"source": SOURCE_USER, "show_advanced_options": True},
+        context={"source": SOURCE_USER},
         data=config_data,
     )
 
@@ -162,7 +167,7 @@ async def test_error_no_password_ssh(hass: HomeAssistant) -> None:
     config_data = {k: v for k, v in CONFIG_DATA_SSH.items() if k != CONF_PASSWORD}
     result = await hass.config_entries.flow.async_init(
         DOMAIN,
-        context={"source": SOURCE_USER, "show_advanced_options": True},
+        context={"source": SOURCE_USER},
         data=config_data,
     )
 
@@ -175,10 +180,15 @@ async def test_error_invalid_ssh(hass: HomeAssistant, patch_is_file) -> None:
     config_data = {k: v for k, v in CONFIG_DATA_SSH.items() if k != CONF_PASSWORD}
     config_data[CONF_SSH_KEY] = SSH_KEY
 
-    patch_is_file.return_value = False
+    def mock_is_file(file) -> bool:
+        if str(file).endswith(SSH_KEY):
+            return False
+        return True
+
+    patch_is_file.side_effect = mock_is_file
     result = await hass.config_entries.flow.async_init(
         DOMAIN,
-        context={"source": SOURCE_USER, "show_advanced_options": True},
+        context={"source": SOURCE_USER},
         data=config_data,
     )
 
@@ -228,7 +238,7 @@ async def test_update_uniqueid_exist(
 
     result = await hass.config_entries.flow.async_init(
         DOMAIN,
-        context={"source": SOURCE_USER, "show_advanced_options": True},
+        context={"source": SOURCE_USER},
         data=CONFIG_DATA_HTTP,
     )
     await hass.async_block_till_done()
@@ -273,7 +283,7 @@ async def test_on_connect_legacy_failed(
     """Test when we have errors connecting the router with legacy library."""
     flow_result = await hass.config_entries.flow.async_init(
         DOMAIN,
-        context={"source": SOURCE_USER, "show_advanced_options": True},
+        context={"source": SOURCE_USER},
     )
 
     connect_legacy.return_value.is_connected = False
@@ -292,7 +302,7 @@ async def test_on_connect_legacy_failed(
 @pytest.mark.parametrize(
     ("side_effect", "error"),
     [
-        (AsusWrtError, "cannot_connect"),
+        (AsusRouterError, "cannot_connect"),
         (TypeError, "unknown"),
         (None, "cannot_connect"),
     ],
@@ -303,10 +313,10 @@ async def test_on_connect_http_failed(
     """Test when we have errors connecting the router with http library."""
     flow_result = await hass.config_entries.flow.async_init(
         DOMAIN,
-        context={"source": SOURCE_USER, "show_advanced_options": True},
+        context={"source": SOURCE_USER},
     )
 
-    connect_http.return_value.is_connected = False
+    connect_http.return_value.connected = False
     connect_http.return_value.async_connect.side_effect = side_effect
 
     result = await hass.config_entries.flow.async_configure(

@@ -1,7 +1,5 @@
 """Support for MQTT message handling."""
 
-from __future__ import annotations
-
 import asyncio
 from collections import defaultdict
 from collections.abc import AsyncGenerator, Callable, Coroutine, Iterable
@@ -18,6 +16,8 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import certifi
+import paho.mqtt.client as mqtt
+from paho.mqtt.matcher import MQTTMatcher
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
@@ -38,15 +38,19 @@ from homeassistant.core import (
     get_hassjob_callable_job_type,
 )
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.dispatcher import (
+    async_dispatcher_connect,
+    async_dispatcher_send,
+)
+from homeassistant.helpers.frame import ReportBehavior, report_usage
 from homeassistant.helpers.importlib import async_import_module
 from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.typing import ConfigType
-from homeassistant.loader import bind_hass
 from homeassistant.setup import SetupPhases, async_pause_setup
 from homeassistant.util.collection import chunked_or_all
 from homeassistant.util.logging import catch_log_exception, log_exception
 
+from .async_client import AsyncMQTTClient
 from .const import (
     CONF_BIRTH_MESSAGE,
     CONF_BROKER,
@@ -63,7 +67,6 @@ from .const import (
     DEFAULT_ENCODING,
     DEFAULT_KEEPALIVE,
     DEFAULT_PORT,
-    DEFAULT_PROTOCOL,
     DEFAULT_QOS,
     DEFAULT_TRANSPORT,
     DEFAULT_WILL,
@@ -71,8 +74,10 @@ from .const import (
     DEFAULT_WS_PATH,
     DOMAIN,
     MQTT_CONNECTION_STATE,
+    MQTT_PROCESSED_SUBSCRIPTIONS,
     PROTOCOL_5,
     PROTOCOL_31,
+    PROTOCOL_311,
     TRANSPORT_WEBSOCKETS,
 )
 from .models import (
@@ -84,13 +89,6 @@ from .models import (
     ReceiveMessage,
 )
 from .util import EnsureJobAfterCooldown, get_file_path, mqtt_config_entry_enabled
-
-if TYPE_CHECKING:
-    # Only import for paho-mqtt type checking here, imports are done locally
-    # because integrations should be able to optionally rely on MQTT.
-    import paho.mqtt.client as mqtt
-
-    from .async_client import AsyncMQTTClient
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -109,6 +107,7 @@ INITIAL_SUBSCRIBE_COOLDOWN = 0.5
 SUBSCRIBE_COOLDOWN = 0.1
 UNSUBSCRIBE_COOLDOWN = 0.1
 TIMEOUT_ACK = 10
+SUBSCRIBE_TIMEOUT = 10
 RECONNECT_INTERVAL_SECONDS = 10
 
 MAX_WILDCARD_SUBSCRIBES_PER_CALL = 1
@@ -126,8 +125,8 @@ def publish(
     hass: HomeAssistant,
     topic: str,
     payload: PublishPayloadType,
-    qos: int | None = 0,
-    retain: bool | None = False,
+    qos: int = 0,
+    retain: bool = False,
     encoding: str | None = DEFAULT_ENCODING,
 ) -> None:
     """Publish message to a MQTT topic."""
@@ -138,8 +137,8 @@ async def async_publish(
     hass: HomeAssistant,
     topic: str,
     payload: PublishPayloadType,
-    qos: int | None = 0,
-    retain: bool | None = False,
+    qos: int = 0,
+    retain: bool = False,
     encoding: str | None = DEFAULT_ENCODING,
 ) -> None:
     """Publish message to a MQTT topic."""
@@ -170,7 +169,7 @@ async def async_publish(
             # requires bytes as payload
             try:
                 outgoing_payload = outgoing_payload.encode(encoding)
-            except (AttributeError, LookupError, UnicodeEncodeError):
+            except AttributeError, LookupError, UnicodeEncodeError:
                 _LOGGER.error(
                     "Can't encode payload for publishing %s on %s with encoding %s",
                     payload,
@@ -179,12 +178,56 @@ async def async_publish(
                 )
                 return
 
-    await mqtt_data.client.async_publish(
-        topic, outgoing_payload, qos or 0, retain or False
+    # Passing None for qos or retain args was deprecated.
+    # Custom integrations should update there code.
+    # Check for fallback to `None` values can be removed with HA Core 2027.6
+    if qos is None or retain is None:
+        report_usage(  # type: ignore[unreachable]
+            "that calls the MQTT publish API with `None` for qos or retain. "
+            "The `qos` argument must be an `int`, "
+            "and the `retain` argument must be a `bool`",
+            breaks_in_ha_version="2027.6.0",
+            core_behavior=ReportBehavior.LOG,
+            exclude_integrations={DOMAIN},
+        )
+        qos = qos or 0
+        retain = retain or False
+
+    await mqtt_data.client.async_publish(topic, outgoing_payload, qos, retain)
+
+
+@callback
+def async_on_subscribe_done(
+    hass: HomeAssistant,
+    topic: str,
+    qos: int,
+    on_subscribe_status: CALLBACK_TYPE,
+) -> CALLBACK_TYPE:
+    """Call on_subscribe_done when the matched subscription was completed.
+
+    If a subscription is already present the callback will call
+    on_subscribe_status directly.
+    Call the returned callback to stop and cleanup status monitoring.
+    """
+
+    async def _sync_mqtt_subscribe(subscriptions: list[tuple[str, int]]) -> None:
+        if (topic, qos) not in subscriptions:
+            return
+        hass.loop.call_soon(on_subscribe_status)
+
+    mqtt_data = hass.data[DATA_MQTT]
+    if (
+        mqtt_data.client.connected
+        and mqtt_data.client.is_active_subscription(topic)
+        and not mqtt_data.client.is_pending_subscription(topic)
+    ):
+        hass.loop.call_soon(on_subscribe_status)
+
+    return async_dispatcher_connect(
+        hass, MQTT_PROCESSED_SUBSCRIPTIONS, _sync_mqtt_subscribe
     )
 
 
-@bind_hass
 async def async_subscribe(
     hass: HomeAssistant,
     topic: str,
@@ -236,7 +279,6 @@ def async_subscribe_internal(
     return client.async_subscribe(topic, msg_callback, qos, encoding, job_type)
 
 
-@bind_hass
 def subscribe(
     hass: HomeAssistant,
     topic: str,
@@ -291,16 +333,12 @@ class MqttClientSetup:
         The setup of the MQTT client should be run in an executor job,
         because it accesses files, so it does IO.
         """
-        # We don't import on the top because some integrations
-        # should be able to optionally rely on MQTT.
-        from paho.mqtt import client as mqtt  # pylint: disable=import-outside-toplevel
-
-        # pylint: disable-next=import-outside-toplevel
-        from .async_client import AsyncMQTTClient
-
         config = self._config
         clean_session: bool | None = None
-        if (protocol := config.get(CONF_PROTOCOL, DEFAULT_PROTOCOL)) == PROTOCOL_31:
+        # If no protocol setting is set in the config entry data
+        # we assume the config was migrated from YAML, and the
+        # protocol version is defaulting to legacy version 3.1.1.
+        if (protocol := config.get(CONF_PROTOCOL, PROTOCOL_311)) == PROTOCOL_31:
             proto = mqtt.MQTTv31
             clean_session = True
         elif protocol == PROTOCOL_5:
@@ -389,7 +427,10 @@ class MQTT:
         self.loop = hass.loop
         self.config_entry = config_entry
         self.conf = conf
-        self.is_mqttv5 = conf.get(CONF_PROTOCOL, DEFAULT_PROTOCOL) == PROTOCOL_5
+        # If no protocol setting is set in the config entry data
+        # we assume the config was migrated from YAML, and the
+        # protocol version is defaulting to legacy version 3.1.1.
+        self.is_mqttv5 = conf.get(CONF_PROTOCOL, PROTOCOL_311) == PROTOCOL_5
 
         self._simple_subscriptions: defaultdict[str, set[Subscription]] = defaultdict(
             set
@@ -524,8 +565,6 @@ class MQTT:
         """Start the misc periodic."""
         assert self._misc_timer is None, "Misc periodic already started"
         _LOGGER.debug("%s: Starting client misc loop", self.config_entry.title)
-        # pylint: disable=import-outside-toplevel
-        import paho.mqtt.client as mqtt
 
         # Inner function to avoid having to check late import
         # each time the function is called.
@@ -642,11 +681,15 @@ class MQTT:
         if fileno > -1:
             self.loop.remove_writer(sock)
 
-    def _is_active_subscription(self, topic: str) -> bool:
+    def is_active_subscription(self, topic: str) -> bool:
         """Check if a topic has an active subscription."""
         return topic in self._simple_subscriptions or any(
             other.topic == topic for other in self._wildcard_subscriptions
         )
+
+    def is_pending_subscription(self, topic: str) -> bool:
+        """Check if a topic has a pending subscription."""
+        return topic in self._pending_subscriptions
 
     async def async_publish(
         self, topic: str, payload: PublishPayloadType, qos: int, retain: bool
@@ -665,8 +708,6 @@ class MQTT:
 
     async def async_connect(self, client_available: asyncio.Future[bool]) -> None:
         """Connect to the host. Does not process messages yet."""
-        # pylint: disable-next=import-outside-toplevel
-        import paho.mqtt.client as mqtt
 
         result: int | None = None
         self._available_future = client_available
@@ -724,8 +765,6 @@ class MQTT:
 
     async def _reconnect_loop(self) -> None:
         """Reconnect to the MQTT server."""
-        # pylint: disable-next=import-outside-toplevel
-        import paho.mqtt.client as mqtt
 
         while True:
             if not self.connected:
@@ -903,7 +942,7 @@ class MQTT:
     @callback
     def _async_unsubscribe(self, topic: str) -> None:
         """Unsubscribe from a topic."""
-        if self._is_active_subscription(topic):
+        if self.is_active_subscription(topic):
             if self._max_qos[topic] == 0:
                 return
             subs = self._matching_subscriptions(topic)
@@ -967,6 +1006,7 @@ class MQTT:
             self._last_subscribe = time.monotonic()
 
             await self._async_wait_for_mid_or_raise(mid, result)
+            async_dispatcher_send(self.hass, MQTT_PROCESSED_SUBSCRIPTIONS, chunk_list)
 
     async def _async_perform_unsubscribes(self) -> None:
         """Perform pending MQTT client unsubscribes."""
@@ -1141,7 +1181,7 @@ class MQTT:
             if subscription.encoding is not None:
                 try:
                     payload = msg.payload.decode(subscription.encoding)
-                except (AttributeError, UnicodeDecodeError):
+                except AttributeError, UnicodeDecodeError:
                     _LOGGER.warning(
                         "Can't decode payload %s on %s with encoding %s (for %s)",
                         msg.payload[0:8192],
@@ -1226,9 +1266,6 @@ class MQTT:
     @callback
     def _async_handle_callback_exception(self, status: mqtt.MQTTErrorCode) -> None:
         """Handle a callback exception."""
-        # We don't import on the top because some integrations
-        # should be able to optionally rely on MQTT.
-        import paho.mqtt.client as mqtt  # pylint: disable=import-outside-toplevel
 
         _LOGGER.warning(
             "Error returned from MQTT server: %s",
@@ -1273,9 +1310,6 @@ class MQTT:
     ) -> None:
         """Wait for ACK from broker or raise on error."""
         if result_code != 0:
-            # pylint: disable-next=import-outside-toplevel
-            import paho.mqtt.client as mqtt
-
             raise HomeAssistantError(
                 translation_domain=DOMAIN,
                 translation_key="mqtt_broker_error",
@@ -1322,9 +1356,6 @@ class MQTT:
 
 
 def _matcher_for_topic(subscription: str) -> Callable[[str], bool]:
-    # pylint: disable-next=import-outside-toplevel
-    from paho.mqtt.matcher import MQTTMatcher
-
     matcher = MQTTMatcher()  # type: ignore[no-untyped-call]
     matcher[subscription] = True
 

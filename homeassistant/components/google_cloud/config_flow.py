@@ -1,7 +1,5 @@
 """Config flow for the Google Cloud integration."""
 
-from __future__ import annotations
-
 import json
 import logging
 from typing import TYPE_CHECKING, Any, cast
@@ -15,7 +13,7 @@ from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
-    OptionsFlow,
+    OptionsFlowWithReload,
 )
 from homeassistant.core import callback
 from homeassistant.helpers.selector import (
@@ -138,7 +136,7 @@ class GoogleCloudConfigFlow(ConfigFlow, domain=DOMAIN):
         return GoogleCloudOptionsFlowHandler()
 
 
-class GoogleCloudOptionsFlowHandler(OptionsFlow):
+class GoogleCloudOptionsFlowHandler(OptionsFlowWithReload):
     """Google Cloud options flow."""
 
     async def async_step_init(

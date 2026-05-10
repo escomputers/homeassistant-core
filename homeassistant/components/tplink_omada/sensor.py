@@ -1,7 +1,5 @@
 """Support for TPLink Omada binary sensors."""
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -23,6 +21,8 @@ from . import OmadaConfigEntry
 from .const import OmadaDeviceStatus
 from .coordinator import OmadaDevicesCoordinator
 from .entity import OmadaDeviceEntity
+
+PARALLEL_UPDATES = 0
 
 # Useful low level status categories, mapped to a more descriptive status.
 DEVICE_STATUS_MAP = {
@@ -64,11 +64,21 @@ async def async_setup_entry(
 
     devices_coordinator = controller.devices_coordinator
 
-    async_add_entities(
-        OmadaDeviceSensor(devices_coordinator, device, desc)
-        for device in devices_coordinator.data.values()
-        for desc in OMADA_DEVICE_SENSORS
-        if desc.exists_func(device)
+    async def _create_device_sensor_entities(
+        device: OmadaListDevice,
+    ) -> None:
+        """Create sensor entities for a device."""
+        async_add_entities(
+            [
+                OmadaDeviceSensor(devices_coordinator, device, desc)
+                for desc in OMADA_DEVICE_SENSORS
+                if desc.exists_func(device)
+            ]
+        )
+
+    await controller.async_register_device_entities(
+        lambda _: True,
+        _create_device_sensor_entities,
     )
 
 

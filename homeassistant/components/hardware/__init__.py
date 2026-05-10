@@ -1,7 +1,5 @@
 """The Hardware integration."""
 
-from __future__ import annotations
-
 import psutil_home_assistant as ha_psutil
 
 from homeassistant.core import HomeAssistant
@@ -11,7 +9,13 @@ from homeassistant.helpers.typing import ConfigType
 from . import websocket_api
 from .const import DATA_HARDWARE, DOMAIN
 from .hardware import async_process_hardware_platforms
-from .models import HardwareData, SystemStatus
+from .models import BoardInfo, HardwareData, HardwareInfo, SystemStatus, USBInfo
+
+__all__ = [
+    "BoardInfo",
+    "HardwareInfo",
+    "USBInfo",
+]
 
 CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 

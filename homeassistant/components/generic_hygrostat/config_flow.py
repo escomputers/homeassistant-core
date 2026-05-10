@@ -1,7 +1,5 @@
 """Config flow for Generic hygrostat."""
 
-from __future__ import annotations
-
 from collections.abc import Mapping
 from typing import Any, cast
 
@@ -92,8 +90,11 @@ OPTIONS_FLOW = {
 class ConfigFlowHandler(SchemaConfigFlowHandler, domain=DOMAIN):
     """Handle a config or options flow."""
 
+    MINOR_VERSION = 2
+
     config_flow = CONFIG_FLOW
     options_flow = OPTIONS_FLOW
+    options_flow_reloads = True
 
     def async_config_entry_title(self, options: Mapping[str, Any]) -> str:
         """Return config entry title."""

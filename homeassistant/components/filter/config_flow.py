@@ -1,7 +1,5 @@
 """Config flow for filter."""
 
-from __future__ import annotations
-
 from collections.abc import Mapping
 from typing import Any, cast
 
@@ -246,6 +244,7 @@ class FilterConfigFlowHandler(SchemaConfigFlowHandler, domain=DOMAIN):
 
     config_flow = CONFIG_FLOW
     options_flow = OPTIONS_FLOW
+    options_flow_reloads = True
 
     def async_config_entry_title(self, options: Mapping[str, Any]) -> str:
         """Return config entry title."""

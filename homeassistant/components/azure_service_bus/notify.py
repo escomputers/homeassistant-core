@@ -1,9 +1,8 @@
 """Support for azure service bus notification."""
 
-from __future__ import annotations
-
 import json
 import logging
+from typing import Any
 
 from azure.servicebus import ServiceBusMessage
 from azure.servicebus.aio import ServiceBusClient, ServiceBusSender
@@ -92,7 +91,7 @@ class ServiceBusNotificationService(BaseNotificationService):
         """Initialize the service."""
         self._client = client
 
-    async def async_send_message(self, message, **kwargs):
+    async def async_send_message(self, message: str, **kwargs: Any) -> None:
         """Send a message."""
         dto = {ATTR_ASB_MESSAGE: message}
 

@@ -1,7 +1,5 @@
 """Test Home Assistant date util methods."""
 
-from __future__ import annotations
-
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -113,16 +111,6 @@ def test_utc_from_timestamp() -> None:
     """Test utc_from_timestamp method."""
     assert datetime(1986, 7, 9, tzinfo=dt_util.UTC) == dt_util.utc_from_timestamp(
         521251200
-    )
-
-
-def test_timestamp_to_utc(caplog: pytest.LogCaptureFixture) -> None:
-    """Test we can convert a utc datetime to a timestamp."""
-    utc_now = dt_util.utcnow()
-    assert dt_util.utc_to_timestamp(utc_now) == utc_now.timestamp()
-    assert (
-        "utc_to_timestamp is a deprecated function which will be removed "
-        "in HA Core 2026.1. Use datetime.timestamp instead" in caplog.text
     )
 
 

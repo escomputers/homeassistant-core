@@ -1,7 +1,5 @@
 """Platform allowing several fans to be grouped into one fan."""
 
-from __future__ import annotations
-
 from functools import reduce
 import logging
 from operator import ior
@@ -252,6 +250,7 @@ class FanGroup(GroupEntity, FanEntity):
     @callback
     def async_update_group_state(self) -> None:
         """Update state and attributes."""
+        self._update_assumed_state_from_members()
 
         states = [
             state

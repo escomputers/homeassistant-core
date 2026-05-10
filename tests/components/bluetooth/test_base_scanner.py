@@ -1,7 +1,5 @@
 """Tests for the Bluetooth base scanner models."""
 
-from __future__ import annotations
-
 from datetime import timedelta
 import time
 from typing import Any
@@ -54,7 +52,6 @@ async def test_remote_scanner(hass: HomeAssistant, name_2: str | None) -> None:
         "44:44:33:11:23:45",
         "wohand",
         {},
-        rssi=-100,
     )
     switchbot_device_adv = generate_advertisement_data(
         local_name="wohand",
@@ -67,7 +64,6 @@ async def test_remote_scanner(hass: HomeAssistant, name_2: str | None) -> None:
         "44:44:33:11:23:45",
         name_2,
         {},
-        rssi=-100,
     )
     switchbot_device_adv_2 = generate_advertisement_data(
         local_name=name_2,
@@ -80,7 +76,6 @@ async def test_remote_scanner(hass: HomeAssistant, name_2: str | None) -> None:
         "44:44:33:11:23:45",
         "wohandlonger",
         {},
-        rssi=-100,
     )
     switchbot_device_adv_3 = generate_advertisement_data(
         local_name="wohandlonger",
@@ -146,7 +141,6 @@ async def test_remote_scanner_expires_connectable(hass: HomeAssistant) -> None:
         "44:44:33:11:23:45",
         "wohand",
         {},
-        rssi=-100,
     )
     switchbot_device_adv = generate_advertisement_data(
         local_name="wohand",
@@ -199,7 +193,6 @@ async def test_remote_scanner_expires_non_connectable(hass: HomeAssistant) -> No
         "44:44:33:11:23:45",
         "wohand",
         {},
-        rssi=-100,
     )
     switchbot_device_adv = generate_advertisement_data(
         local_name="wohand",
@@ -272,7 +265,6 @@ async def test_base_scanner_connecting_behavior(hass: HomeAssistant) -> None:
         "44:44:33:11:23:45",
         "wohand",
         {},
-        rssi=-100,
     )
     switchbot_device_adv = generate_advertisement_data(
         local_name="wohand",
@@ -376,7 +368,6 @@ async def test_device_with_ten_minute_advertising_interval(hass: HomeAssistant) 
         "44:44:33:11:23:45",
         "bparasite",
         {},
-        rssi=-100,
     )
     bparasite_device_adv = generate_advertisement_data(
         local_name="bparasite",
@@ -501,7 +492,6 @@ async def test_scanner_stops_responding(hass: HomeAssistant) -> None:
         "44:44:33:11:23:45",
         "bparasite",
         {},
-        rssi=-100,
     )
     bparasite_device_adv = generate_advertisement_data(
         local_name="bparasite",
@@ -545,7 +535,6 @@ async def test_remote_scanner_bluetooth_config_entry(
         "44:44:33:11:23:45",
         "wohand",
         {},
-        rssi=-100,
     )
     switchbot_device_adv = generate_advertisement_data(
         local_name="wohand",

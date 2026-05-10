@@ -24,6 +24,7 @@ from homeassistant.const import (
     ENTITY_MATCH_ALL,
     ENTITY_MATCH_NONE,
     EVENT_CORE_CONFIG_UPDATE,
+    EVENT_HOMEASSISTANT_STARTED,
     SERVICE_SAVE_PERSISTENT_STATES,
     SERVICE_TOGGLE,
     SERVICE_TURN_OFF,
@@ -641,178 +642,143 @@ async def test_reload_all(
 
 
 @pytest.mark.parametrize(
-    "installation_type",
+    ("arch", "bit_32", "installation_type", "venv", "expected_issues"),
     [
-        "Home Assistant Core",
-        "Home Assistant Supervised",
+        ("i386", True, "Unknown", False, [("unsupported_local_deps", None)]),
+        ("armhf", True, "Unknown", False, [("unsupported_local_deps", None)]),
+        ("armv7", True, "Unknown", False, [("unsupported_local_deps", None)]),
+        ("aarch64", False, "Unknown", False, [("unsupported_local_deps", None)]),
+        ("generic-x86-64", False, "Unknown", False, [("unsupported_local_deps", None)]),
+        (
+            "i386",
+            True,
+            "Home Assistant Core",
+            True,
+            [
+                (
+                    "deprecated_method_architecture",
+                    {"installation_type": "Core", "arch": "i386"},
+                )
+            ],
+        ),
+        (
+            "armhf",
+            True,
+            "Home Assistant Core",
+            True,
+            [
+                (
+                    "deprecated_method_architecture",
+                    {"installation_type": "Core", "arch": "armhf"},
+                )
+            ],
+        ),
+        (
+            "armv7",
+            True,
+            "Home Assistant Core",
+            True,
+            [
+                (
+                    "deprecated_method_architecture",
+                    {"installation_type": "Core", "arch": "armv7"},
+                )
+            ],
+        ),
+        (
+            "aarch64",
+            False,
+            "Home Assistant Core",
+            True,
+            [("deprecated_method", {"installation_type": "Core", "arch": "aarch64"})],
+        ),
+        (
+            "generic-x86-64",
+            False,
+            "Home Assistant Core",
+            True,
+            [
+                (
+                    "deprecated_method",
+                    {"installation_type": "Core", "arch": "generic-x86-64"},
+                )
+            ],
+        ),
     ],
 )
-@pytest.mark.parametrize(
-    "arch",
-    [
-        "i386",
-        "armhf",
-        "armv7",
-    ],
-)
-async def test_deprecated_installation_issue_32bit_method(
+async def test_deprecated_installation_issue_core(
     hass: HomeAssistant,
     issue_registry: ir.IssueRegistry,
-    installation_type: str,
     arch: str,
-) -> None:
-    """Test deprecated installation issue."""
-    with patch(
-        "homeassistant.components.homeassistant.async_get_system_info",
-        return_value={
-            "installation_type": installation_type,
-            "arch": arch,
-        },
-    ):
-        assert await async_setup_component(hass, DOMAIN, {})
-        await hass.async_block_till_done()
-
-    assert len(issue_registry.issues) == 1
-    issue = issue_registry.async_get_issue(DOMAIN, "deprecated_method_architecture")
-    assert issue.domain == DOMAIN
-    assert issue.severity == ir.IssueSeverity.WARNING
-    assert issue.translation_placeholders == {
-        "installation_type": installation_type[15:],
-        "arch": arch,
-    }
-
-
-@pytest.mark.parametrize(
-    "installation_type",
-    [
-        "Home Assistant Container",
-        "Home Assistant OS",
-    ],
-)
-@pytest.mark.parametrize(
-    "arch",
-    [
-        "i386",
-        "armhf",
-    ],
-)
-async def test_deprecated_installation_issue_32bit(
-    hass: HomeAssistant,
-    issue_registry: ir.IssueRegistry,
+    bit_32: bool,
     installation_type: str,
-    arch: str,
-) -> None:
-    """Test deprecated installation issue."""
-    with patch(
-        "homeassistant.components.homeassistant.async_get_system_info",
-        return_value={
-            "installation_type": installation_type,
-            "arch": arch,
-        },
-    ):
-        assert await async_setup_component(hass, DOMAIN, {})
-        await hass.async_block_till_done()
-
-    assert len(issue_registry.issues) == 1
-    issue = issue_registry.async_get_issue(DOMAIN, "deprecated_architecture")
-    assert issue.domain == DOMAIN
-    assert issue.severity == ir.IssueSeverity.WARNING
-    assert issue.translation_placeholders == {
-        "installation_type": installation_type[15:],
-        "arch": arch,
-    }
-
-
-@pytest.mark.parametrize(
-    "installation_type",
-    [
-        "Home Assistant Core",
-        "Home Assistant Supervised",
-    ],
-)
-async def test_deprecated_installation_issue_method(
-    hass: HomeAssistant,
-    issue_registry: ir.IssueRegistry,
-    installation_type: str,
-) -> None:
-    """Test deprecated installation issue."""
-    with patch(
-        "homeassistant.components.homeassistant.async_get_system_info",
-        return_value={
-            "installation_type": installation_type,
-            "arch": "generic-x86-64",
-        },
-    ):
-        assert await async_setup_component(hass, DOMAIN, {})
-        await hass.async_block_till_done()
-
-    assert len(issue_registry.issues) == 1
-    issue = issue_registry.async_get_issue(DOMAIN, "deprecated_method")
-    assert issue.domain == DOMAIN
-    assert issue.severity == ir.IssueSeverity.WARNING
-    assert issue.translation_placeholders == {
-        "installation_type": installation_type[15:],
-        "arch": "generic-x86-64",
-    }
-
-
-@pytest.mark.parametrize(
-    ("board", "issue_id"),
-    [
-        ("rpi3", "deprecated_os_aarch64"),
-        ("rpi4", "deprecated_os_aarch64"),
-        ("tinker", "deprecated_os_armv7"),
-        ("odroid-xu4", "deprecated_os_armv7"),
-        ("rpi2", "deprecated_os_armv7"),
-    ],
-)
-async def test_deprecated_installation_issue_aarch64(
-    hass: HomeAssistant,
-    issue_registry: ir.IssueRegistry,
-    board: str,
-    issue_id: str,
+    venv: bool,
+    expected_issues: list[tuple[str, dict[str, str | None]]],
 ) -> None:
     """Test deprecated installation issue."""
     with (
         patch(
             "homeassistant.components.homeassistant.async_get_system_info",
             return_value={
-                "installation_type": "Home Assistant OS",
-                "arch": "armv7",
+                "installation_type": installation_type,
+                "arch": arch,
+                "docker": False,
+                "virtualenv": venv,
             },
         ),
         patch(
-            "homeassistant.components.hassio.get_os_info", return_value={"board": board}
+            "homeassistant.components.homeassistant._is_32_bit",
+            return_value=bit_32,
         ),
     ):
         assert await async_setup_component(hass, DOMAIN, {})
+        hass.bus.async_fire(EVENT_HOMEASSISTANT_STARTED)
         await hass.async_block_till_done()
 
-    assert len(issue_registry.issues) == 1
-    issue = issue_registry.async_get_issue(DOMAIN, issue_id)
-    assert issue.domain == DOMAIN
-    assert issue.severity == ir.IssueSeverity.WARNING
-    assert issue.translation_placeholders == {
-        "installation_guide": "https://www.home-assistant.io/installation/",
-    }
+    assert len(issue_registry.issues) == len(expected_issues)
+    for expected_issue, expected_placeholders in expected_issues:
+        issue = issue_registry.async_get_issue(DOMAIN, expected_issue)
+        assert issue.domain == DOMAIN
+        assert issue.severity == ir.IssueSeverity.WARNING
+        assert issue.translation_placeholders == expected_placeholders
 
 
-async def test_deprecated_installation_issue_armv7_container(
+@pytest.mark.parametrize(
+    "arch",
+    [
+        "i386",
+        "armv7",
+        "armhf",
+    ],
+)
+async def test_deprecated_installation_issue_container_32bit(
     hass: HomeAssistant,
     issue_registry: ir.IssueRegistry,
+    arch: str,
 ) -> None:
     """Test deprecated installation issue."""
-    with patch(
-        "homeassistant.components.homeassistant.async_get_system_info",
-        return_value={
-            "installation_type": "Home Assistant Container",
-            "arch": "armv7",
-        },
+    with (
+        patch(
+            "homeassistant.components.homeassistant.async_get_system_info",
+            return_value={
+                "installation_type": "Home Assistant Container",
+                "container_arch": arch,
+                "arch": arch,
+                "docker": True,
+                "virtualenv": False,
+            },
+        ),
+        patch(
+            "homeassistant.components.homeassistant._is_32_bit",
+            return_value=True,
+        ),
     ):
         assert await async_setup_component(hass, DOMAIN, {})
+        hass.bus.async_fire(EVENT_HOMEASSISTANT_STARTED)
         await hass.async_block_till_done()
 
     assert len(issue_registry.issues) == 1
-    issue = issue_registry.async_get_issue(DOMAIN, "deprecated_container_armv7")
+    issue = issue_registry.async_get_issue(DOMAIN, "deprecated_container")
     assert issue.domain == DOMAIN
     assert issue.severity == ir.IssueSeverity.WARNING
+    assert issue.translation_placeholders == {"arch": arch}

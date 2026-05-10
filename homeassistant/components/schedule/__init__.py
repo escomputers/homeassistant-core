@@ -1,7 +1,5 @@
 """Support for schedules in Home Assistant."""
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from datetime import datetime, time, timedelta
 import itertools
@@ -199,8 +197,6 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     async def reload_service_handler(service_call: ServiceCall) -> None:
         """Reload yaml entities."""
         conf = await component.async_prepare_reload(skip_reset=True)
-        if conf is None:
-            conf = {DOMAIN: {}}
         await yaml_collection.async_load(
             [{CONF_ID: id_, **cfg} for id_, cfg in conf.get(DOMAIN, {}).items()]
         )
@@ -242,7 +238,7 @@ class ScheduleStorageCollection(DictStorageCollection):
     async def _update_data(self, item: dict, update_data: dict) -> dict:
         """Return a new updated data object."""
         self.SCHEMA(update_data)
-        return item | update_data
+        return {CONF_ID: item[CONF_ID]} | update_data
 
     async def _async_load_data(self) -> SerializedStorageCollection | None:
         """Load the data."""
@@ -392,7 +388,7 @@ class Schedule(CollectionEntity):
 
     def all_custom_data_keys(self) -> frozenset[str]:
         """Return the set of all currently used custom data attribute keys."""
-        data_keys = set()
+        data_keys: set[str] = set()
 
         for weekday in WEEKDAY_TO_CONF.values():
             if not (weekday_config := self._config.get(weekday)):

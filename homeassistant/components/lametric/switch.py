@@ -1,7 +1,5 @@
 """Support for LaMetric switches."""
 
-from __future__ import annotations
-
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
@@ -9,13 +7,11 @@ from typing import Any
 from demetriek import Device, LaMetricDevice
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import DOMAIN
-from .coordinator import LaMetricDataUpdateCoordinator
+from .coordinator import LaMetricConfigEntry, LaMetricDataUpdateCoordinator
 from .entity import LaMetricEntity
 from .helpers import lametric_exception_handler
 
@@ -47,11 +43,11 @@ SWITCHES = [
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: LaMetricConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up LaMetric switch based on a config entry."""
-    coordinator: LaMetricDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     async_add_entities(
         LaMetricSwitchEntity(
             coordinator=coordinator,

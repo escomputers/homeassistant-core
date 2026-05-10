@@ -1,14 +1,17 @@
 """Config flow for Google Assistant SDK integration."""
 
-from __future__ import annotations
-
 from collections.abc import Mapping
 import logging
 from typing import Any
 
 import voluptuous as vol
 
-from homeassistant.config_entries import SOURCE_REAUTH, ConfigFlowResult, OptionsFlow
+from homeassistant.config_entries import (
+    SOURCE_REAUTH,
+    SOURCE_RECONFIGURE,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.core import callback
 from homeassistant.helpers import config_entry_oauth2_flow
 
@@ -40,6 +43,12 @@ class OAuth2FlowHandler(
             "prompt": "consent",
         }
 
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle a reconfiguration flow."""
+        return await self.async_step_user(user_input)
+
     async def async_step_reauth(
         self, entry_data: Mapping[str, Any]
     ) -> ConfigFlowResult:
@@ -59,6 +68,10 @@ class OAuth2FlowHandler(
         if self.source == SOURCE_REAUTH:
             return self.async_update_reload_and_abort(
                 self._get_reauth_entry(), data=data
+            )
+        if self.source == SOURCE_RECONFIGURE:
+            return self.async_update_reload_and_abort(
+                self._get_reconfigure_entry(), data=data
             )
 
         return self.async_create_entry(

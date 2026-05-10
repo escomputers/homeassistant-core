@@ -1,7 +1,5 @@
 """All methods needed to bootstrap a Home Assistant instance."""
 
-from __future__ import annotations
-
 import asyncio
 from collections import defaultdict
 from collections.abc import Awaitable, Callable, Generator, Mapping
@@ -101,8 +99,7 @@ def async_notify_setup_error(
 
     This method must be run in the event loop.
     """
-    # pylint: disable-next=import-outside-toplevel
-    from .components import persistent_notification
+    from .components import persistent_notification  # noqa: PLC0415
 
     if (errors := hass.data.get(_DATA_PERSISTENT_ERRORS)) is None:
         errors = hass.data[_DATA_PERSISTENT_ERRORS] = {}

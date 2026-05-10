@@ -1,7 +1,5 @@
 """Support for esphome numbers."""
 
-from __future__ import annotations
-
 from functools import partial
 
 from aioesphomeapi import (
@@ -67,7 +65,9 @@ class EsphomeNumber(EsphomeEntity[NumberInfo, NumberState], NumberEntity):
     @convert_api_error_ha_error
     async def async_set_native_value(self, value: float) -> None:
         """Update the current value."""
-        self._client.number_command(self._key, value)
+        self._client.number_command(
+            self._key, value, device_id=self._static_info.device_id
+        )
 
 
 async_setup_entry = partial(

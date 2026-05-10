@@ -1,7 +1,5 @@
 """Support for the Dynalite networks."""
 
-from __future__ import annotations
-
 import voluptuous as vol
 
 from homeassistant.core import HomeAssistant, ServiceCall, callback
@@ -50,7 +48,7 @@ async def _request_channel_level(service_call: ServiceCall) -> None:
 
 
 @callback
-def setup_services(hass: HomeAssistant) -> None:
+def async_setup_services(hass: HomeAssistant) -> None:
     """Set up the Dynalite platform."""
     hass.services.async_register(
         DOMAIN,

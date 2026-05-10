@@ -1,7 +1,5 @@
 """Switch platform for Hyperion."""
 
-from __future__ import annotations
-
 import functools
 from typing import Any
 
@@ -9,6 +7,7 @@ from hyperion import client
 from hyperion.const import (
     KEY_COMPONENT,
     KEY_COMPONENTID_ALL,
+    KEY_COMPONENTID_AUDIO,
     KEY_COMPONENTID_BLACKBORDER,
     KEY_COMPONENTID_BOBLIGHTSERVER,
     KEY_COMPONENTID_FORWARDER,
@@ -59,6 +58,7 @@ COMPONENT_SWITCHES = [
     KEY_COMPONENTID_GRABBER,
     KEY_COMPONENTID_LEDDEVICE,
     KEY_COMPONENTID_V4L,
+    KEY_COMPONENTID_AUDIO,
 ]
 
 
@@ -83,6 +83,7 @@ def _component_to_translation_key(component: str) -> str:
         KEY_COMPONENTID_GRABBER: "platform_capture",
         KEY_COMPONENTID_LEDDEVICE: "led_device",
         KEY_COMPONENTID_V4L: "usb_capture",
+        KEY_COMPONENTID_AUDIO: "audio_capture",
     }[component]
 
 

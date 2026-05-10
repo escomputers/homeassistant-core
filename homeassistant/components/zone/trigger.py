@@ -1,7 +1,5 @@
 """Offer zone automation rules."""
 
-from __future__ import annotations
-
 import logging
 
 import voluptuous as vol
@@ -22,7 +20,6 @@ from homeassistant.core import (
     callback,
 )
 from homeassistant.helpers import (
-    condition,
     config_validation as cv,
     entity_registry as er,
     location,
@@ -30,6 +27,8 @@ from homeassistant.helpers import (
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.trigger import TriggerActionType, TriggerInfo
 from homeassistant.helpers.typing import ConfigType
+
+from . import condition
 
 EVENT_ENTER = "enter"
 EVENT_LEAVE = "leave"

@@ -1,7 +1,5 @@
 """The tests for the climate component."""
 
-from __future__ import annotations
-
 from enum import Enum
 from typing import Any
 from unittest.mock import MagicMock, Mock
@@ -24,6 +22,7 @@ from homeassistant.components.climate.const import (
     ATTR_PRESET_MODE,
     ATTR_SWING_HORIZONTAL_MODE,
     ATTR_SWING_MODE,
+    ATTR_TARGET_HUMIDITY_STEP,
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
     SERVICE_SET_FAN_MODE,
@@ -232,7 +231,7 @@ async def test_temperature_features_is_valid(
 
     with pytest.raises(
         ServiceValidationError,
-        match="Set temperature action was used with the target temperature parameter but the entity does not support it",
+        match="Set temperature action was used with the 'Target temperature' parameter but the entity does not support it",
     ):
         await hass.services.async_call(
             DOMAIN,
@@ -246,7 +245,7 @@ async def test_temperature_features_is_valid(
 
     with pytest.raises(
         ServiceValidationError,
-        match="Set temperature action was used with the target temperature low/high parameter but the entity does not support it",
+        match="Set temperature action was used with the 'Lower/Upper target temperature' parameter but the entity does not support it",
     ):
         await hass.services.async_call(
             DOMAIN,
@@ -323,22 +322,23 @@ async def test_mode_validation(
     assert state.attributes.get(ATTR_SWING_MODE) == "off"
     assert state.attributes.get(ATTR_SWING_HORIZONTAL_MODE) == "off"
 
-    await hass.services.async_call(
-        DOMAIN,
-        SERVICE_SET_HVAC_MODE,
-        {
-            "entity_id": "climate.test",
-            "hvac_mode": "auto",
-        },
-        blocking=True,
-    )
-
+    with pytest.raises(
+        ServiceValidationError,
+        match="HVAC mode auto is not valid. Valid HVAC modes are: off, heat",
+    ) as exc:
+        await hass.services.async_call(
+            DOMAIN,
+            SERVICE_SET_HVAC_MODE,
+            {
+                "entity_id": "climate.test",
+                "hvac_mode": "auto",
+            },
+            blocking=True,
+        )
     assert (
-        "MockClimateEntity sets the hvac_mode auto which is not valid "
-        "for this entity with modes: off, heat. This will stop working "
-        "in 2025.4 and raise an error instead. "
-        "Please" in caplog.text
+        str(exc.value) == "HVAC mode auto is not valid. Valid HVAC modes are: off, heat"
     )
+    assert exc.value.translation_key == "not_valid_hvac_mode"
 
     with pytest.raises(
         ServiceValidationError,
@@ -507,6 +507,7 @@ async def test_humidity_validation(
         _attr_target_humidity = 50
         _attr_min_humidity = 50
         _attr_max_humidity = 60
+        _attr_target_humidity_step = 5
 
         def set_humidity(self, humidity: int) -> None:
             """Set new target humidity."""
@@ -525,6 +526,7 @@ async def test_humidity_validation(
 
     state = hass.states.get("climate.test")
     assert state.attributes.get(ATTR_HUMIDITY) == 50
+    assert state.attributes.get(ATTR_TARGET_HUMIDITY_STEP) == 5
 
     with pytest.raises(
         ServiceValidationError,
@@ -701,7 +703,7 @@ async def test_target_temp_high_higher_than_low(
 
     with pytest.raises(
         ServiceValidationError,
-        match="Target temperature low can not be higher than Target temperature high",
+        match="'Lower target temperature' cannot be higher than 'Upper target temperature'",
     ) as exc:
         await hass.services.async_call(
             DOMAIN,
@@ -715,6 +717,6 @@ async def test_target_temp_high_higher_than_low(
         )
     assert (
         str(exc.value)
-        == "Target temperature low can not be higher than Target temperature high"
+        == "'Lower target temperature' cannot be higher than 'Upper target temperature'"
     )
     assert exc.value.translation_key == "low_temp_higher_than_high_temp"

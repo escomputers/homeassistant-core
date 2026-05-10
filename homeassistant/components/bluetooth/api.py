@@ -3,13 +3,12 @@
 These APIs are the only documented way to interact with the bluetooth integration.
 """
 
-from __future__ import annotations
-
 import asyncio
 from asyncio import Future
 from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, cast
 
+from bleak import BleakScanner
 from habluetooth import (
     BaseHaScanner,
     BluetoothScannerDevice,
@@ -38,13 +37,16 @@ def _get_manager(hass: HomeAssistant) -> HomeAssistantBluetoothManager:
 
 
 @hass_callback
-def async_get_scanner(hass: HomeAssistant) -> HaBleakScannerWrapper:
-    """Return a HaBleakScannerWrapper.
+def async_get_scanner(hass: HomeAssistant) -> BleakScanner:
+    """Return a HaBleakScannerWrapper cast to BleakScanner.
 
     This is a wrapper around our BleakScanner singleton that allows
     multiple integrations to share the same BleakScanner.
+
+    The wrapper is cast to BleakScanner for type compatibility with
+    libraries expecting a BleakScanner instance.
     """
-    return HaBleakScannerWrapper()
+    return cast(BleakScanner, HaBleakScannerWrapper())
 
 
 @hass_callback
@@ -64,6 +66,22 @@ def async_scanner_by_source(hass: HomeAssistant, source: str) -> BaseHaScanner |
 def async_scanner_count(hass: HomeAssistant, connectable: bool = True) -> int:
     """Return the number of scanners currently in use."""
     return _get_manager(hass).async_scanner_count(connectable)
+
+
+@hass_callback
+def async_current_scanners(hass: HomeAssistant) -> list[BaseHaScanner]:
+    """Return the list of currently active scanners.
+
+    This method returns a list of all active Bluetooth scanners registered
+    with Home Assistant, including both connectable and non-connectable scanners.
+
+    Args:
+        hass: Home Assistant instance
+
+    Returns:
+        List of all active scanner instances
+    """
+    return _get_manager(hass).async_current_scanners()
 
 
 @hass_callback
@@ -171,6 +189,33 @@ def async_track_unavailable(
 def async_rediscover_address(hass: HomeAssistant, address: str) -> None:
     """Trigger discovery of devices which have already been seen."""
     _get_manager(hass).async_rediscover_address(address)
+
+
+@hass_callback
+def async_clear_address_from_match_history(hass: HomeAssistant, address: str) -> None:
+    """Clear an address from the integration matcher history.
+
+    This allows future advertisements from this address to trigger discovery
+    even if the advertisement content has changed but the service data UUIDs
+    remain the same.
+
+    Unlike async_rediscover_address, this does not immediately re-trigger
+    discovery with the current advertisement in history.
+    """
+    _get_manager(hass).async_clear_address_from_match_history(address)
+
+
+@hass_callback
+def async_clear_advertisement_history(hass: HomeAssistant, address: str) -> None:
+    """Clear cached advertisement history for a device.
+
+    Causes the next advertisement from this address to be treated as new
+    data, bypassing the change-detection guard in the Bluetooth manager.
+    Intended for devices that emit static advertisements as a wake-up
+    signal, for example, devices that require an active GATT connection
+    to read sensor data and whose advertisement payload never changes.
+    """
+    _get_manager(hass).async_clear_advertisement_history(address)
 
 
 @hass_callback

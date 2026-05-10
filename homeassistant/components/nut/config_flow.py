@@ -1,7 +1,5 @@
 """Config flow for Network UPS Tools (NUT) integration."""
 
-from __future__ import annotations
-
 from collections.abc import Mapping
 import logging
 from typing import Any
@@ -39,10 +37,12 @@ def _base_schema(
     base_schema = {
         vol.Optional(CONF_HOST, default=nut_config.get(CONF_HOST) or DEFAULT_HOST): str,
         vol.Optional(CONF_PORT, default=nut_config.get(CONF_PORT) or DEFAULT_PORT): int,
-        vol.Optional(CONF_USERNAME, default=nut_config.get(CONF_USERNAME) or ""): str,
+        vol.Optional(
+            CONF_USERNAME, default=nut_config.get(CONF_USERNAME, vol.UNDEFINED)
+        ): str,
         vol.Optional(
             CONF_PASSWORD,
-            default=PASSWORD_NOT_CHANGED if use_password_not_changed else "",
+            default=PASSWORD_NOT_CHANGED if use_password_not_changed else vol.UNDEFINED,
         ): str,
     }
 

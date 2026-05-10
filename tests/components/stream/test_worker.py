@@ -20,9 +20,10 @@ import logging
 import math
 from pathlib import Path
 import threading
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import av
+from av.codec.codec import UnknownCodecError  # pylint: disable=no-name-in-module
 import numpy as np
 import pytest
 
@@ -44,6 +45,7 @@ from homeassistant.components.stream.core import Orientation, StreamSettings
 from homeassistant.components.stream.exceptions import StreamClientError
 from homeassistant.components.stream.worker import (
     StreamEndedError,
+    StreamMuxer,
     StreamState,
     StreamWorkerError,
     stream_worker,
@@ -219,7 +221,7 @@ class FakePyAvBuffer:
         self.video_packets = []
         self.memory_file: io.BytesIO | None = None
 
-    def add_stream(self, template=None):
+    def add_stream_from_template(self, template, **kwargs):
         """Create an output buffer that captures packets for test to examine."""
 
         class FakeAvOutputStream:
@@ -801,10 +803,7 @@ async def test_worker_log(
         with pytest.raises(StreamWorkerError) as err:
             run_worker(hass, stream, stream_url)
         await hass.async_block_till_done()
-    assert (
-        str(err.value)
-        == f"Error opening stream (ERRORTYPE_-2, Invalid data, {redacted_url})"
-    )
+    assert str(err.value) == f"Error opening stream (Invalid data, {redacted_url})"
     assert stream_url not in caplog.text
 
 
@@ -984,7 +983,7 @@ async def test_h265_video_is_hvc1(hass: HomeAssistant, worker_finished_stream) -
     segment = complete_segments[0]
     part = segment.parts[0]
     av_part = av.open(io.BytesIO(segment.init + part.data))
-    assert av_part.streams.video[0].codec_tag == "hvc1"
+    assert av_part.streams.video[0].codec_tag == "hev1"
     av_part.close()
 
     await stream.stop()
@@ -1005,7 +1004,7 @@ async def test_get_image(hass: HomeAssistant, h264_video, filename) -> None:
 
     # Since libjpeg-turbo is not installed on the CI runner, we use a mock
     with patch(
-        "homeassistant.components.camera.img_util.TurboJPEGSingleton"
+        "homeassistant.components.camera.TurboJPEGSingleton"
     ) as mock_turbo_jpeg_singleton:
         mock_turbo_jpeg_singleton.instance.return_value = mock_turbo_jpeg()
         stream = create_stream(hass, h264_video, {}, dynamic_stream_settings())
@@ -1068,7 +1067,7 @@ async def test_get_image_rotated(hass: HomeAssistant, h264_video, filename) -> N
 
     # Since libjpeg-turbo is not installed on the CI runner, we use a mock
     with patch(
-        "homeassistant.components.camera.img_util.TurboJPEGSingleton"
+        "homeassistant.components.camera.TurboJPEGSingleton"
     ) as mock_turbo_jpeg_singleton:
         mock_turbo_jpeg_singleton.instance.return_value = mock_turbo_jpeg()
         for orientation in (Orientation.NO_TRANSFORM, Orientation.ROTATE_RIGHT):
@@ -1092,3 +1091,41 @@ async def test_get_image_rotated(hass: HomeAssistant, h264_video, filename) -> N
                 0
             ][0]
         ).all()
+
+
+def test_add_stream_from_template_happy_path() -> None:
+    """Test add_stream_from_template returns stream directly on success."""
+    template = MagicMock(spec=av.VideoStream)
+    expected_stream = MagicMock(spec=av.VideoStream)
+    container = MagicMock()
+    container.add_stream_from_template.return_value = expected_stream
+
+    result = StreamMuxer._add_stream_from_template(container, template)
+
+    assert result is expected_stream
+    container.add_stream_from_template.assert_called_once_with(template)
+
+
+def test_add_stream_from_template_decoder_only_fallback() -> None:
+    """Test decoder-only codecs fall back to opaque=True.
+
+    When a video stream uses a decoder-only codec like libdav1d (AV1),
+    add_stream_from_template raises UnknownCodecError because no matching
+    encoder exists. The worker retries with opaque=True to bypass the
+    encoder lookup.
+    """
+    template = MagicMock(spec=av.VideoStream)
+    expected_stream = MagicMock(spec=av.VideoStream)
+    container = MagicMock()
+    container.add_stream_from_template.side_effect = [
+        UnknownCodecError("libdav1d"),
+        expected_stream,
+    ]
+
+    result = StreamMuxer._add_stream_from_template(container, template)
+
+    assert result is expected_stream
+    assert container.add_stream_from_template.call_args_list == [
+        ((template,), {}),
+        ((template,), {"opaque": True}),
+    ]

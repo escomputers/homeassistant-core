@@ -1,7 +1,5 @@
 """Config flow for motionEye integration."""
 
-from __future__ import annotations
-
 from collections.abc import Mapping
 from typing import Any
 
@@ -14,10 +12,9 @@ import voluptuous as vol
 
 from homeassistant.config_entries import (
     SOURCE_REAUTH,
-    ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
-    OptionsFlow,
+    OptionsFlowWithReload,
 )
 from homeassistant.const import CONF_URL, CONF_WEBHOOK_ID
 from homeassistant.core import callback
@@ -39,6 +36,7 @@ from .const import (
     DEFAULT_WEBHOOK_SET_OVERWRITE,
     DOMAIN,
 )
+from .coordinator import MotionEyeConfigEntry
 
 
 class MotionEyeConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -143,7 +141,7 @@ class MotionEyeConfigFlow(ConfigFlow, domain=DOMAIN):
 
         title = user_input[CONF_URL]
         if self._hassio_discovery:
-            title = "Add-on"
+            title = "App"
 
         return self.async_create_entry(
             title=title,
@@ -180,13 +178,13 @@ class MotionEyeConfigFlow(ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(
-        config_entry: ConfigEntry,
+        config_entry: MotionEyeConfigEntry,
     ) -> MotionEyeOptionsFlow:
         """Get the Hyperion Options flow."""
         return MotionEyeOptionsFlow()
 
 
-class MotionEyeOptionsFlow(OptionsFlow):
+class MotionEyeOptionsFlow(OptionsFlowWithReload):
     """motionEye options flow."""
 
     async def async_step_init(

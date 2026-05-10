@@ -1,7 +1,5 @@
 """Generic platform."""
 
-from __future__ import annotations
-
 from devolo_plc_api.device_api import (
     ConnectedStationInfo,
     NeighborAPInfo,
@@ -21,7 +19,7 @@ from .coordinator import DevoloDataUpdateCoordinator, DevoloHomeNetworkConfigEnt
 type _DataType = (
     LogicalNetwork
     | DataRate
-    | list[ConnectedStationInfo]
+    | dict[str, ConnectedStationInfo]
     | list[NeighborAPInfo]
     | WifiGuestAccessGet
     | bool

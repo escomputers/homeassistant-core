@@ -1,7 +1,5 @@
 """Support for AVM FRITZ!SmartHome cover devices."""
 
-from __future__ import annotations
-
 from typing import Any
 
 from homeassistant.components.cover import (
@@ -15,6 +13,9 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import FritzboxConfigEntry
 from .entity import FritzBoxDeviceEntity
+
+# Coordinator handles data updates, so we can allow unlimited parallel updates
+PARALLEL_UPDATES = 0
 
 
 async def async_setup_entry(

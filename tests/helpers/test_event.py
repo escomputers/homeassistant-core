@@ -4946,43 +4946,30 @@ async def test_async_track_state_report_event(hass: HomeAssistant) -> None:
     unsub()
 
 
-async def test_async_track_template_no_hass_deprecated(
-    hass: HomeAssistant, caplog: pytest.LogCaptureFixture
-) -> None:
-    """Test async_track_template with a template without hass is deprecated."""
-    message = (
-        "Detected code that calls async_track_template_result with template without "
-        "hass. This will stop working in Home Assistant 2025.10, please "
-        "report this issue"
-    )
+async def test_async_track_state_report_change_event(hass: HomeAssistant) -> None:
+    """Test listen for both state change and state report events."""
+    tracker_called: dict[str, list[str]] = {"light.bowl": [], "light.top": []}
 
-    async_track_template(hass, Template("blah"), lambda x, y, z: None)
-    assert message in caplog.text
-    caplog.clear()
+    @ha.callback
+    def on_state_change(event: Event[EventStateChangedData]) -> None:
+        new_state = event.data["new_state"].state
+        tracker_called[event.data["entity_id"]].append(new_state)
 
-    async_track_template(hass, Template("blah", hass), lambda x, y, z: None)
-    assert message not in caplog.text
-    caplog.clear()
+    @ha.callback
+    def on_state_report(event: Event[EventStateReportedData]) -> None:
+        new_state = event.data["new_state"].state
+        tracker_called[event.data["entity_id"]].append(new_state)
 
+    async_track_state_change_event(hass, ["light.bowl", "light.top"], on_state_change)
+    async_track_state_report_event(hass, ["light.bowl", "light.top"], on_state_report)
+    entity_ids = ["light.bowl", "light.top"]
+    state_sequence = ["on", "on", "off", "off"]
+    for state in state_sequence:
+        for entity_id in entity_ids:
+            hass.states.async_set(entity_id, state)
+    await hass.async_block_till_done()
 
-async def test_async_track_template_result_no_hass_deprecated(
-    hass: HomeAssistant, caplog: pytest.LogCaptureFixture
-) -> None:
-    """Test async_track_template_result with a template without hass is deprecated."""
-    message = (
-        "Detected code that calls async_track_template_result with template without "
-        "hass. This will stop working in Home Assistant 2025.10, please "
-        "report this issue"
-    )
-
-    async_track_template_result(
-        hass, [TrackTemplate(Template("blah"), None)], lambda x, y, z: None
-    )
-    assert message in caplog.text
-    caplog.clear()
-
-    async_track_template_result(
-        hass, [TrackTemplate(Template("blah", hass), None)], lambda x, y, z: None
-    )
-    assert message not in caplog.text
-    caplog.clear()
+    assert tracker_called == {
+        "light.bowl": ["on", "on", "off", "off"],
+        "light.top": ["on", "on", "off", "off"],
+    }

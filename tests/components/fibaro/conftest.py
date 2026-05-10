@@ -83,10 +83,10 @@ def mock_power_sensor() -> Mock:
 
 
 @pytest.fixture
-def mock_cover() -> Mock:
-    """Fixture for a cover."""
+def mock_positionable_cover() -> Mock:
+    """Fixture for a positionable cover."""
     cover = Mock()
-    cover.fibaro_id = 3
+    cover.fibaro_id = 2
     cover.parent_fibaro_id = 0
     cover.name = "Test cover"
     cover.room_id = 1
@@ -108,6 +108,42 @@ def mock_cover() -> Mock:
     state_mock = Mock()
     state_mock.has_value = True
     state_mock.str_value.return_value = "opening"
+    cover.state = state_mock
+    return cover
+
+
+@pytest.fixture
+def mock_cover() -> Mock:
+    """Fixture for a cover supporting slats but without positioning."""
+    cover = Mock()
+    cover.fibaro_id = 4
+    cover.parent_fibaro_id = 0
+    cover.name = "Test cover"
+    cover.room_id = 1
+    cover.dead = False
+    cover.visible = True
+    cover.enabled = True
+    cover.type = "com.fibaro.baseShutter"
+    cover.base_type = "com.fibaro.actor"
+    cover.properties = {"manufacturer": ""}
+    cover.actions = {
+        "open": 0,
+        "close": 0,
+        "stop": 0,
+        "rotateSlatsUp": 0,
+        "rotateSlatsDown": 0,
+        "stopSlats": 0,
+    }
+    cover.supported_features = {}
+    value_mock = Mock()
+    value_mock.has_value = False
+    cover.value = value_mock
+    value2_mock = Mock()
+    value2_mock.has_value = False
+    cover.value_2 = value2_mock
+    state_mock = Mock()
+    state_mock.has_value = True
+    state_mock.str_value.return_value = "closed"
     cover.state = state_mock
     return cover
 
@@ -137,10 +173,43 @@ def mock_light() -> Mock:
 
 
 @pytest.fixture
+def mock_zigbee_light() -> Mock:
+    """Fixture for a dimmmable zigbee light."""
+    light = Mock()
+    light.fibaro_id = 12
+    light.parent_fibaro_id = 0
+    light.name = "Test light"
+    light.room_id = 1
+    light.dead = False
+    light.visible = True
+    light.enabled = True
+    light.type = "com.fibaro.multilevelSwitch"
+    light.base_type = "com.fibaro.binarySwitch"
+    light.properties = {
+        "manufacturer": "",
+        "isLight": True,
+        "interfaces": ["autoTurnOff", "favoritePosition", "light", "zigbee"],
+    }
+    light.actions = {"setValue": 1, "toggle": 0, "turnOn": 0, "turnOff": 0}
+    light.supported_features = {}
+    light.has_interface.return_value = False
+    light.raw_data = {
+        "fibaro_id": 12,
+        "name": "Test light",
+        "properties": {"value": 20},
+    }
+    value_mock = Mock()
+    value_mock.has_value = True
+    value_mock.int_value.return_value = 20
+    light.value = value_mock
+    return light
+
+
+@pytest.fixture
 def mock_thermostat() -> Mock:
     """Fixture for a thermostat."""
     climate = Mock()
-    climate.fibaro_id = 4
+    climate.fibaro_id = 13
     climate.parent_fibaro_id = 0
     climate.name = "Test climate"
     climate.room_id = 1
@@ -213,6 +282,68 @@ def mock_thermostat_with_operating_mode() -> Mock:
     value_mock = Mock()
     value_mock.has_value = True
     value_mock.float_value.return_value = 20
+    climate.value = value_mock
+    return climate
+
+
+@pytest.fixture
+def mock_thermostat_quickapp_1() -> Mock:
+    """Fixture for a thermostat."""
+    climate = Mock()
+    climate.fibaro_id = 9
+    climate.parent_fibaro_id = 0
+    climate.has_endpoint_id = False
+    climate.name = "Test climate"
+    climate.room_id = 1
+    climate.dead = False
+    climate.visible = True
+    climate.enabled = True
+    climate.type = "com.fibaro.hvacSystemHeat"
+    climate.base_type = "com.fibaro.hvacSystem"
+    climate.properties = {"manufacturer": ""}
+    climate.actions = {"setHeatingThermostatSetpoint": 1, "setThermostatMode": 1}
+    climate.supported_features = {}
+    climate.has_supported_operating_modes = False
+    climate.has_supported_thermostat_modes = True
+    climate.supported_thermostat_modes = ["Off", "Heat"]
+    climate.has_thermostat_mode = True
+    climate.thermostat_mode = "Heat"
+    climate.has_unit = False
+    climate.has_heating_thermostat_setpoint = False
+    climate.has_heating_thermostat_setpoint_future = False
+    value_mock = Mock()
+    value_mock.has_value = False
+    climate.value = value_mock
+    return climate
+
+
+@pytest.fixture
+def mock_thermostat_quickapp_2() -> Mock:
+    """Fixture for a thermostat."""
+    climate = Mock()
+    climate.fibaro_id = 10
+    climate.parent_fibaro_id = 0
+    climate.has_endpoint_id = False
+    climate.name = "Test climate 2"
+    climate.room_id = 1
+    climate.dead = False
+    climate.visible = True
+    climate.enabled = True
+    climate.type = "com.fibaro.hvacSystemHeat"
+    climate.base_type = "com.fibaro.hvacSystem"
+    climate.properties = {"manufacturer": ""}
+    climate.actions = {"setHeatingThermostatSetpoint": 1, "setThermostatMode": 1}
+    climate.supported_features = {}
+    climate.has_supported_operating_modes = False
+    climate.has_supported_thermostat_modes = True
+    climate.supported_thermostat_modes = ["Off", "Heat"]
+    climate.has_thermostat_mode = True
+    climate.thermostat_mode = "Heat"
+    climate.has_unit = False
+    climate.has_heating_thermostat_setpoint = False
+    climate.has_heating_thermostat_setpoint_future = False
+    value_mock = Mock()
+    value_mock.has_value = False
     climate.value = value_mock
     return climate
 

@@ -1,7 +1,5 @@
 """Support for Broadlink sensors."""
 
-from __future__ import annotations
-
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -10,6 +8,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
+    CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
     PERCENTAGE,
     UnitOfElectricCurrent,
     UnitOfElectricPotential,
@@ -33,6 +32,24 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
         key="air_quality",
         device_class=SensorDeviceClass.AQI,
+    ),
+    SensorEntityDescription(
+        key="pm10",
+        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        device_class=SensorDeviceClass.PM10,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key="pm2_5",
+        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        device_class=SensorDeviceClass.PM25,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    SensorEntityDescription(
+        key="pm1",
+        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        device_class=SensorDeviceClass.PM1,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     SensorEntityDescription(
         key="humidity",
@@ -89,6 +106,8 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the Broadlink sensor."""
+    # Uses legacy hass.data[DOMAIN] pattern
+    # pylint: disable-next=hass-use-runtime-data
     device = hass.data[DOMAIN].devices[config_entry.entry_id]
     sensor_data = device.update_manager.coordinator.data
     sensors = [

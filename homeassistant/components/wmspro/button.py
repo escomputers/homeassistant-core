@@ -1,7 +1,5 @@
 """Identify support for WMS WebControl pro."""
 
-from __future__ import annotations
-
 from wmspro.const import WMS_WebControl_pro_API_actionDescription
 
 from homeassistant.components.button import ButtonDeviceClass, ButtonEntity
@@ -23,7 +21,7 @@ async def async_setup_entry(
     entities: list[WebControlProGenericEntity] = [
         WebControlProIdentifyButton(config_entry.entry_id, dest)
         for dest in hub.dests.values()
-        if dest.action(WMS_WebControl_pro_API_actionDescription.Identify)
+        if dest.hasAction(WMS_WebControl_pro_API_actionDescription.Identify)
     ]
 
     async_add_entities(entities)

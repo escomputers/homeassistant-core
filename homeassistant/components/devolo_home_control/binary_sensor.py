@@ -1,7 +1,5 @@
 """Platform for binary sensor integration."""
 
-from __future__ import annotations
-
 from devolo_home_control_api.devices.zwave import Zwave
 from devolo_home_control_api.homecontrol import HomeControl
 
@@ -126,7 +124,7 @@ class DevoloRemoteControl(DevoloDeviceEntity, BinarySensorEntity):
         self._attr_translation_key = "button"
         self._attr_translation_placeholders = {"key": str(key)}
 
-    def _sync(self, message: tuple) -> None:
+    def sync_callback(self, message: tuple) -> None:
         """Update the binary sensor state."""
         if (
             message[0] == self._remote_control_property.element_uid

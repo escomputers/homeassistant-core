@@ -14,12 +14,14 @@ from homeassistant.components.homeassistant_yellow.config_flow import (
     HomeAssistantYellowConfigFlow,
 )
 from homeassistant.components.homeassistant_yellow.const import DOMAIN
+from homeassistant.components.usb import SerialDevice, async_scan_serial_ports
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.setup import async_setup_component
 
 from tests.common import MockConfigEntry, MockModule, mock_integration
+from tests.components.usb import patch_scanned_serial_ports
 
 
 @pytest.mark.parametrize(
@@ -71,10 +73,16 @@ async def test_setup_entry(
     if num_entries > 0:
         zha_flows = hass.config_entries.flow.async_progress_by_handler("zha")
         assert len(zha_flows) == 1
-        assert zha_flows[0]["step_id"] == "choose_formation_strategy"
+        assert zha_flows[0]["step_id"] == "choose_setup_strategy"
+
+        setup_result = await hass.config_entries.flow.async_configure(
+            zha_flows[0]["flow_id"],
+            user_input={"next_step_id": zha.config_flow.SETUP_STRATEGY_ADVANCED},
+        )
+        assert setup_result["step_id"] == "choose_formation_strategy"
 
         await hass.config_entries.flow.async_configure(
-            zha_flows[0]["flow_id"],
+            setup_result["flow_id"],
             user_input={"next_step_id": zha.config_flow.FORMATION_REUSE_SETTINGS},
         )
         await hass.async_block_till_done()
@@ -117,10 +125,16 @@ async def test_setup_zha(hass: HomeAssistant, addon_store_info) -> None:
     # Finish setting up ZHA
     zha_flows = hass.config_entries.flow.async_progress_by_handler("zha")
     assert len(zha_flows) == 1
-    assert zha_flows[0]["step_id"] == "choose_formation_strategy"
+    assert zha_flows[0]["step_id"] == "choose_setup_strategy"
+
+    setup_result = await hass.config_entries.flow.async_configure(
+        zha_flows[0]["flow_id"],
+        user_input={"next_step_id": zha.config_flow.SETUP_STRATEGY_ADVANCED},
+    )
+    assert setup_result["step_id"] == "choose_formation_strategy"
 
     await hass.config_entries.flow.async_configure(
-        zha_flows[0]["flow_id"],
+        setup_result["flow_id"],
         user_input={"next_step_id": zha.config_flow.FORMATION_REUSE_SETTINGS},
     )
     await hass.async_block_till_done()
@@ -135,7 +149,61 @@ async def test_setup_zha(hass: HomeAssistant, addon_store_info) -> None:
         "radio_type": "ezsp",
     }
     assert config_entry.options == {}
-    assert config_entry.title == "Yellow"
+
+
+async def test_contributes_radio_serial_port(
+    hass: HomeAssistant, addon_store_info
+) -> None:
+    """Yellow registers a scanner that contributes its radio serial port."""
+    mock_integration(hass, MockModule("hassio"))
+    await async_setup_component(hass, HASSIO_DOMAIN, {})
+
+    bare_port = SerialDevice(
+        device="/dev/ttyAMA1",
+        serial_number=None,
+        manufacturer=None,
+        description=None,
+    )
+
+    config_entry = MockConfigEntry(
+        data={"firmware": ApplicationType.EZSP},
+        domain=DOMAIN,
+        options={},
+        title="Home Assistant Yellow",
+        version=1,
+        minor_version=2,
+    )
+    config_entry.add_to_hass(hass)
+
+    with (
+        patch(
+            "homeassistant.components.homeassistant_yellow.get_os_info",
+            return_value={"board": "yellow"},
+        ),
+        patch(
+            "homeassistant.components.onboarding.async_is_onboarded",
+            return_value=True,
+        ),
+        patch_scanned_serial_ports(return_value=[bare_port]),
+    ):
+        assert await hass.config_entries.async_setup(config_entry.entry_id)
+        await hass.async_block_till_done(wait_background_tasks=True)
+
+        ports = await async_scan_serial_ports(hass)
+
+        assert ports == [
+            SerialDevice(
+                device="/dev/ttyAMA1",
+                serial_number=None,
+                manufacturer="Nabu Casa",
+                description="Yellow Zigbee Radio",
+            )
+        ]
+
+        assert await hass.config_entries.async_unload(config_entry.entry_id)
+
+        ports = await async_scan_serial_ports(hass)
+        assert ports == [bare_port]
 
 
 async def test_setup_entry_no_hassio(hass: HomeAssistant) -> None:

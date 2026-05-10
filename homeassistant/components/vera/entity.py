@@ -1,7 +1,5 @@
 """Support for Vera devices."""
 
-from __future__ import annotations
-
 import logging
 from typing import Any
 
@@ -47,6 +45,10 @@ class VeraEntity[_DeviceTypeT: veraApi.VeraDevice](Entity):
     async def async_added_to_hass(self) -> None:
         """Subscribe to updates."""
         self.controller.register(self.vera_device, self._update_callback)
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Unsubscribe from updates."""
+        self.controller.unregister(self.vera_device, self._update_callback)
 
     def _update_callback(self, _device: _DeviceTypeT) -> None:
         """Update the state."""

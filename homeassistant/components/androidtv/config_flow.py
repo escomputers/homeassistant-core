@@ -1,7 +1,5 @@
 """Config flow to configure the Android Debug Bridge integration."""
 
-from __future__ import annotations
-
 import logging
 import os
 from typing import Any
@@ -39,11 +37,11 @@ from .const import (
     CONF_TURN_OFF_COMMAND,
     CONF_TURN_ON_COMMAND,
     DEFAULT_ADB_SERVER_PORT,
-    DEFAULT_DEVICE_CLASS,
     DEFAULT_EXCLUDE_UNNAMED_APPS,
     DEFAULT_GET_SOURCES,
     DEFAULT_PORT,
     DEFAULT_SCREENCAP_INTERVAL,
+    DEVICE_AUTO,
     DEVICE_CLASSES,
     DOMAIN,
     PROP_ETHMAC,
@@ -89,8 +87,14 @@ class AndroidTVFlowHandler(ConfigFlow, domain=DOMAIN):
         data_schema = vol.Schema(
             {
                 vol.Required(CONF_HOST, default=host): str,
-                vol.Required(CONF_DEVICE_CLASS, default=DEFAULT_DEVICE_CLASS): vol.In(
-                    DEVICE_CLASSES
+                vol.Required(CONF_DEVICE_CLASS, default=DEVICE_AUTO): SelectSelector(
+                    SelectSelectorConfig(
+                        options=[
+                            SelectOptionDict(value=k, label=v)
+                            for k, v in DEVICE_CLASSES.items()
+                        ],
+                        translation_key="device_class",
+                    )
                 ),
                 vol.Required(CONF_PORT, default=DEFAULT_PORT): cv.port,
             },

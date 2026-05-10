@@ -1,10 +1,9 @@
 """Demo implementation of the media player."""
 
-from __future__ import annotations
-
 from datetime import datetime
 from typing import Any
 
+from homeassistant.components import media_source
 from homeassistant.components.media_player import (
     BrowseMedia,
     MediaClass,
@@ -136,18 +135,6 @@ class AbstractDemoPlayer(MediaPlayerEntity):
     def mute_volume(self, mute: bool) -> None:
         """Mute the volume."""
         self._attr_is_volume_muted = mute
-        self.schedule_update_ha_state()
-
-    def volume_up(self) -> None:
-        """Increase volume."""
-        assert self.volume_level is not None
-        self._attr_volume_level = min(1.0, self.volume_level + 0.1)
-        self.schedule_update_ha_state()
-
-    def volume_down(self) -> None:
-        """Decrease volume."""
-        assert self.volume_level is not None
-        self._attr_volume_level = max(0.0, self.volume_level - 0.1)
         self.schedule_update_ha_state()
 
     def set_volume_level(self, volume: float) -> None:
@@ -395,6 +382,15 @@ class DemoBrowsePlayer(AbstractDemoPlayer):
     """A Demo media player that supports browse."""
 
     _attr_supported_features = BROWSE_PLAYER_SUPPORT
+
+    async def async_browse_media(
+        self,
+        media_content_type: MediaType | str | None = None,
+        media_content_id: str | None = None,
+    ) -> BrowseMedia:
+        """Implement the websocket media browsing helper."""
+
+        return await media_source.async_browse_media(self.hass, media_content_id)
 
 
 class DemoGroupPlayer(AbstractDemoPlayer):

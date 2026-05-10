@@ -1,7 +1,5 @@
 """Hyperion config flow."""
 
-from __future__ import annotations
-
 import asyncio
 from collections.abc import Mapping
 from contextlib import suppress
@@ -17,7 +15,7 @@ from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
-    OptionsFlow,
+    OptionsFlowWithReload,
 )
 from homeassistant.const import (
     CONF_BASE,
@@ -431,7 +429,7 @@ class HyperionConfigFlow(ConfigFlow, domain=DOMAIN):
         return HyperionOptionsFlow()
 
 
-class HyperionOptionsFlow(OptionsFlow):
+class HyperionOptionsFlow(OptionsFlowWithReload):
     """Hyperion options flow."""
 
     def _create_client(self) -> client.HyperionClient:

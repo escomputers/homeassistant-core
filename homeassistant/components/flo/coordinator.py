@@ -1,7 +1,5 @@
 """Flo device object."""
 
-from __future__ import annotations
-
 import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -190,7 +188,7 @@ class FloDeviceDataUpdateCoordinator(DataUpdateCoordinator):
         return bool(
             self.pending_info_alerts_count
             or self.pending_warning_alerts_count
-            or self.pending_warning_alerts_count
+            or self.pending_critical_alerts_count
         )
 
     @property

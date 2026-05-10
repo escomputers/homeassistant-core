@@ -1,7 +1,5 @@
 """Platform allowing several switches to be grouped into one switch."""
 
-from __future__ import annotations
-
 import logging
 from typing import Any
 
@@ -156,6 +154,8 @@ class SwitchGroup(GroupEntity, SwitchEntity):
     @callback
     def async_update_group_state(self) -> None:
         """Query all members and determine the switch group state."""
+        self._update_assumed_state_from_members()
+
         states = [
             state.state
             for entity_id in self._entity_ids

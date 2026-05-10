@@ -1,7 +1,5 @@
 """Config flow for Jewish calendar integration."""
 
-from __future__ import annotations
-
 import logging
 from typing import Any, get_args
 import zoneinfo
@@ -9,7 +7,11 @@ import zoneinfo
 from hdate.translator import Language
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
+from homeassistant.config_entries import (
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlowWithReload,
+)
 from homeassistant.const import (
     CONF_ELEVATION,
     CONF_LANGUAGE,
@@ -124,7 +126,7 @@ class JewishCalendarConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_update_reload_and_abort(reconfigure_entry, data=user_input)
 
 
-class JewishCalendarOptionsFlowHandler(OptionsFlow):
+class JewishCalendarOptionsFlowHandler(OptionsFlowWithReload):
     """Handle Jewish Calendar options."""
 
     async def async_step_init(

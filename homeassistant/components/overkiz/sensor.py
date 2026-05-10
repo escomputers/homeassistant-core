@@ -1,7 +1,5 @@
 """Support for Overkiz sensors."""
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import cast
@@ -10,6 +8,7 @@ from pyoverkiz.enums import OverkizAttribute, OverkizState, UIWidget
 from pyoverkiz.types import StateType as OverkizStateType
 
 from homeassistant.components.sensor import (
+    DEVICE_CLASS_UNITS,
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
@@ -120,7 +119,7 @@ SENSOR_DESCRIPTIONS: list[OverkizSensorDescription] = [
         icon="mdi:water",
         native_unit_of_measurement=UnitOfVolume.LITERS,
         device_class=SensorDeviceClass.WATER,
-        state_class=SensorStateClass.TOTAL_INCREASING,
+        state_class=SensorStateClass.TOTAL,
     ),
     OverkizSensorDescription(
         key=OverkizState.IO_OUTLET_ENGINE,
@@ -203,6 +202,20 @@ SENSOR_DESCRIPTIONS: list[OverkizSensorDescription] = [
     ),
     OverkizSensorDescription(
         key=OverkizState.MODBUSLINK_POWER_HEAT_ELECTRICAL,
+        name="Electric power consumption",
+        device_class=SensorDeviceClass.POWER,
+        native_unit_of_measurement=UnitOfPower.WATT,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    OverkizSensorDescription(
+        key=OverkizState.IO_POWER_HEAT_PUMP,
+        name="Heat pump power consumption",
+        device_class=SensorDeviceClass.POWER,
+        native_unit_of_measurement=UnitOfPower.WATT,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    OverkizSensorDescription(
+        key=OverkizState.IO_POWER_HEAT_ELECTRICAL,
         name="Electric power consumption",
         device_class=SensorDeviceClass.POWER,
         native_unit_of_measurement=UnitOfPower.WATT,
@@ -592,9 +605,24 @@ class OverkizStateSensor(OverkizDescriptiveEntity, SensorEntity):
         if (unit := attrs[OverkizAttribute.CORE_MEASURED_VALUE_TYPE]) and (
             unit_value := unit.value_as_str
         ):
-            return OVERKIZ_UNIT_TO_HA.get(unit_value, default_unit)
+            ha_unit = OVERKIZ_UNIT_TO_HA.get(unit_value, default_unit)
+            if self._is_unit_valid_for_device_class(ha_unit):
+                return ha_unit
 
         return default_unit
+
+    def _is_unit_valid_for_device_class(self, unit: str) -> bool:
+        """Check if a unit is valid for this sensor's device class.
+
+        The device-level core:MeasuredValueType attribute describes the primary
+        sensor (e.g. luminance/temperature), but must not override the unit of
+        unrelated sensors on the same device (e.g. RSSI).
+        """
+        if not (device_class := self.entity_description.device_class):
+            return True
+        if (valid_units := DEVICE_CLASS_UNITS.get(device_class)) is None:
+            return True
+        return unit in valid_units
 
 
 class OverkizHomeKitSetupCodeSensor(OverkizEntity, SensorEntity):

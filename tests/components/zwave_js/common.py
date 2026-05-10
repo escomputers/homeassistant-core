@@ -1,7 +1,5 @@
 """Provide common test tools for Z-Wave JS."""
 
-from __future__ import annotations
-
 from copy import deepcopy
 from typing import Any
 
@@ -21,7 +19,6 @@ ENERGY_SENSOR = "sensor.smart_plug_with_two_usb_ports_value_electric_consumed_2"
 VOLTAGE_SENSOR = "sensor.smart_plug_with_two_usb_ports_value_electric_consumed_3"
 CURRENT_SENSOR = "sensor.smart_plug_with_two_usb_ports_value_electric_consumed_4"
 SWITCH_ENTITY = "switch.smart_plug_with_two_usb_ports"
-LOW_BATTERY_BINARY_SENSOR = "binary_sensor.multisensor_6_low_battery_level"
 ENABLED_LEGACY_BINARY_SENSOR = "binary_sensor.z_wave_door_window_sensor_any"
 DISABLED_LEGACY_BINARY_SENSOR = "binary_sensor.multisensor_6_any"
 NOTIFICATION_MOTION_BINARY_SENSOR = "binary_sensor.multisensor_6_motion_detection"
@@ -42,12 +39,12 @@ EATON_RF9640_ENTITY = "light.allloaddimmer"
 AEON_SMART_SWITCH_LIGHT_ENTITY = "light.smart_switch_6"
 SCHLAGE_BE469_LOCK_ENTITY = "lock.touchscreen_deadbolt"
 ZEN_31_ENTITY = "light.kitchen_under_cabinet_lights"
-METER_ENERGY_SENSOR = "sensor.smart_switch_6_electric_consumed_kwh"
 METER_VOLTAGE_SENSOR = "sensor.smart_switch_6_electric_consumed_v"
 HUMIDIFIER_ADC_T3000_ENTITY = "humidifier.adc_t3000_humidifier"
 DEHUMIDIFIER_ADC_T3000_ENTITY = "humidifier.adc_t3000_dehumidifier"
 
 PROPERTY_ULTRAVIOLET = "Ultraviolet"
+TEST_SENSITIVE_NETWORK_KEY = "00112233445566778899AABBCCDDEEFF"
 
 
 def replace_value_of_zwave_value(

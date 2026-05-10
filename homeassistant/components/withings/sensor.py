@@ -1,7 +1,5 @@
 """Sensors flow for Withings."""
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -30,6 +28,7 @@ from homeassistant.const import (
     Platform,
     UnitOfLength,
     UnitOfMass,
+    UnitOfPressure,
     UnitOfSpeed,
     UnitOfTemperature,
     UnitOfTime,
@@ -48,7 +47,6 @@ from .const import (
     UOM_BEATS_PER_MINUTE,
     UOM_BREATHS_PER_MINUTE,
     UOM_FREQUENCY,
-    UOM_MMHG,
 )
 from .coordinator import (
     WithingsActivityDataUpdateCoordinator,
@@ -162,14 +160,16 @@ MEASUREMENT_SENSORS: dict[
         key="diastolic_blood_pressure_mmhg",
         measurement_type=MeasurementType.DIASTOLIC_BLOOD_PRESSURE,
         translation_key="diastolic_blood_pressure",
-        native_unit_of_measurement=UOM_MMHG,
+        native_unit_of_measurement=UnitOfPressure.MMHG,
+        device_class=SensorDeviceClass.PRESSURE,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     MeasurementType.SYSTOLIC_BLOOD_PRESSURE: WithingsMeasurementSensorEntityDescription(
         key="systolic_blood_pressure_mmhg",
         measurement_type=MeasurementType.SYSTOLIC_BLOOD_PRESSURE,
         translation_key="systolic_blood_pressure",
-        native_unit_of_measurement=UOM_MMHG,
+        native_unit_of_measurement=UnitOfPressure.MMHG,
+        device_class=SensorDeviceClass.PRESSURE,
         state_class=SensorStateClass.MEASUREMENT,
     ),
     MeasurementType.HEART_RATE: WithingsMeasurementSensorEntityDescription(

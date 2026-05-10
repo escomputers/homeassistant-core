@@ -1,7 +1,5 @@
 """Support for Google Nest SDM climate devices."""
 
-from __future__ import annotations
-
 from typing import Any, cast
 
 from google_nest_sdm.device import Device
@@ -82,11 +80,14 @@ async def async_setup_entry(
 ) -> None:
     """Set up the client entities."""
 
-    async_add_entities(
-        ThermostatEntity(device)
-        for device in entry.runtime_data.device_manager.devices.values()
-        if ThermostatHvacTrait.NAME in device.traits
-    )
+    def devices_added(devices: list[Device]) -> None:
+        async_add_entities(
+            ThermostatEntity(device)
+            for device in devices
+            if ThermostatHvacTrait.NAME in device.traits
+        )
+
+    entry.runtime_data.register_devices_listener(devices_added)
 
 
 class ThermostatEntity(ClimateEntity):
@@ -267,8 +268,6 @@ class ThermostatEntity(ClimateEntity):
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new target hvac mode."""
-        if hvac_mode not in self.hvac_modes:
-            raise ValueError(f"Unsupported hvac_mode '{hvac_mode}'")
         api_mode = THERMOSTAT_INV_MODE_MAP[hvac_mode]
         trait = self._device.traits[ThermostatModeTrait.NAME]
         try:

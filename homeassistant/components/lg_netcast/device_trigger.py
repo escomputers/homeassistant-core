@@ -1,7 +1,5 @@
 """Provides device triggers for LG Netcast."""
 
-from __future__ import annotations
-
 from typing import Any
 
 import voluptuous as vol
@@ -47,14 +45,13 @@ async def async_validate_trigger_config(
         except ValueError as err:
             raise InvalidDeviceAutomationConfig(err) from err
 
-        if DOMAIN in hass.data:
-            for config_entry_id in device.config_entries:
-                if hass.data[DOMAIN].get(config_entry_id):
-                    break
-            else:
-                raise InvalidDeviceAutomationConfig(
-                    f"Device {device.id} is not from an existing {DOMAIN} config entry"
-                )
+        if not any(
+            entry.entry_id in device.config_entries
+            for entry in hass.config_entries.async_loaded_entries(DOMAIN)
+        ):
+            raise InvalidDeviceAutomationConfig(
+                f"Device {device.id} is not from an existing {DOMAIN} config entry"
+            )
 
     return config
 

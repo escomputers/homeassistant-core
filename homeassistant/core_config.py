@@ -1,7 +1,5 @@
 """Module to help with parsing and generating configuration files."""
 
-from __future__ import annotations
-
 from collections import OrderedDict
 from collections.abc import Sequence
 from contextlib import suppress
@@ -249,7 +247,7 @@ def _validate_currency(data: Any) -> Any:
         raise
 
 
-def _validate_stun_or_turn_url(value: Any) -> str:
+def validate_stun_or_turn_url(value: Any) -> str:
     """Validate an URL."""
     url_in = str(value)
     url = urlparse(url_in)
@@ -331,7 +329,7 @@ CORE_CONFIG_SCHEMA = vol.All(
                             vol.Schema(
                                 {
                                     vol.Required(CONF_URL): vol.All(
-                                        cv.ensure_list, [_validate_stun_or_turn_url]
+                                        cv.ensure_list, [validate_stun_or_turn_url]
                                     ),
                                     vol.Optional(CONF_USERNAME): cv.string,
                                     vol.Optional(CONF_CREDENTIAL): cv.string,
@@ -526,7 +524,7 @@ class _ComponentSet(set[str]):
         self._top_level_components.remove(value)
         return super().remove(value)
 
-    def discard(self, value: str) -> None:
+    def discard(self, value: object) -> None:
         """Remove a component from the store."""
         raise NotImplementedError("_ComponentSet does not support discard, use remove")
 
@@ -538,8 +536,7 @@ class Config:
 
     def __init__(self, hass: HomeAssistant, config_dir: str) -> None:
         """Initialize a new config object."""
-        # pylint: disable-next=import-outside-toplevel
-        from .components.zone import DEFAULT_RADIUS
+        from .components.zone import DEFAULT_RADIUS  # noqa: PLC0415
 
         self.hass = hass
 
@@ -571,12 +568,11 @@ class Config:
         self.skip_pip_packages: list[str] = []
 
         # Set of loaded top level components
-        # This set is updated by _ComponentSet
-        # and should not be modified directly
+        # This set is updated by _ComponentSet and should not be modified directly.
         self.top_level_components: set[str] = set()
 
-        # Set of all loaded components including platform
-        # based components
+        # Set of all loaded components including platform based components
+        # This set is updated by _ComponentSet and should not be modified directly.
         self.all_components: set[str] = set()
 
         # Set of loaded components
@@ -632,6 +628,16 @@ class Config:
         """
         return os.path.join(self.config_dir, *path)
 
+    def cache_path(self, *path: str) -> str:
+        """Generate path to the file within the cache directory.
+
+        The cache directory is used for temporary data that can be
+        regenerated and is not included in backups.
+
+        Async friendly.
+        """
+        return self.path(".cache", *path)
+
     def is_allowed_external_url(self, url: str) -> bool:
         """Check if an external URL is allowed."""
         parsed_url = f"{yarl.URL(url)!s}/"
@@ -657,7 +663,7 @@ class Config:
                 thepath = thepath.resolve()
             else:
                 thepath = thepath.parent.resolve()
-        except (FileNotFoundError, RuntimeError, PermissionError):
+        except FileNotFoundError, RuntimeError, PermissionError:
             return False
 
         for allowed_path in self.allowlist_external_dirs:
@@ -845,8 +851,7 @@ class Config:
         ) -> dict[str, Any]:
             """Migrate to the new version."""
 
-            # pylint: disable-next=import-outside-toplevel
-            from .components.zone import DEFAULT_RADIUS
+            from .components.zone import DEFAULT_RADIUS  # noqa: PLC0415
 
             data = old_data
             if old_major_version == 1 and old_minor_version < 2:
@@ -863,8 +868,9 @@ class Config:
                 try:
                     owner = await self.hass.auth.async_get_owner()
                     if owner is not None:
-                        # pylint: disable-next=import-outside-toplevel
-                        from .components.frontend import storage as frontend_store
+                        from .components.frontend import (  # noqa: PLC0415
+                            storage as frontend_store,
+                        )
 
                         owner_store = await frontend_store.async_user_store(
                             self.hass, owner.id

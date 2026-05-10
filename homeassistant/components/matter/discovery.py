@@ -1,7 +1,5 @@
 """Map Matter Nodes and Attributes to Home Assistant entities."""
 
-from __future__ import annotations
-
 from collections.abc import Generator
 
 from chip.clusters.ClusterObjects import ClusterAttributeDescriptor, NullValue
@@ -75,6 +73,13 @@ def async_discover_entities(
         if (
             schema.vendor_id is not None
             and device_info.vendorID not in schema.vendor_id
+        ):
+            continue
+
+        # check product_id
+        if (
+            schema.product_id is not None
+            and device_info.productID not in schema.product_id
         ):
             continue
 

@@ -1,4 +1,4 @@
-"""Configuration for iAqualink tests."""
+"""Configuration for iAquaLink tests."""
 
 import random
 from unittest.mock import AsyncMock, PropertyMock, patch
@@ -43,6 +43,7 @@ def get_aqualink_system(aqualink, cls=None, data=None):
         data = {}
 
     num = random.randint(0, 99999)
+    data["name"] = "Pool"
     data["serial_number"] = f"SN{num:05}"
 
     return cls(aqualink=aqualink, data=data)

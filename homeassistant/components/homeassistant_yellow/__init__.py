@@ -1,10 +1,12 @@
 """The Home Assistant Yellow integration."""
 
-from __future__ import annotations
-
+from dataclasses import dataclass
 import logging
 
 from homeassistant.components.hassio import get_os_info
+from homeassistant.components.homeassistant_hardware.coordinator import (
+    FirmwareUpdateCoordinator,
+)
 from homeassistant.components.homeassistant_hardware.silabs_multiprotocol_addon import (
     check_multi_pan_addon,
 )
@@ -12,18 +14,44 @@ from homeassistant.components.homeassistant_hardware.util import (
     ApplicationType,
     guess_firmware_info,
 )
+from homeassistant.components.usb import (
+    SerialDevice,
+    USBDevice,
+    async_register_serial_port_scanner,
+)
 from homeassistant.config_entries import SOURCE_HARDWARE, ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers import discovery_flow
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.hassio import is_hassio
 
-from .const import FIRMWARE, FIRMWARE_VERSION, RADIO_DEVICE, ZHA_HW_DISCOVERY_DATA
+from .const import (
+    FIRMWARE,
+    FIRMWARE_VERSION,
+    MANUFACTURER,
+    NABU_CASA_FIRMWARE_RELEASES_URL,
+    RADIO_DEVICE,
+    ZHA_HW_DISCOVERY_DATA,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
+type HomeAssistantYellowConfigEntry = ConfigEntry[HomeAssistantYellowData]
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+
+@dataclass
+class HomeAssistantYellowData:
+    """Runtime data definition."""
+
+    coordinator: (
+        FirmwareUpdateCoordinator  # Type from homeassistant_hardware.coordinator
+    )
+
+
+async def async_setup_entry(
+    hass: HomeAssistant, entry: HomeAssistantYellowConfigEntry
+) -> bool:
     """Set up a Home Assistant Yellow config entry."""
     if not is_hassio(hass):
         # Not running under supervisor, Home Assistant may have been migrated
@@ -41,6 +69,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     firmware = ApplicationType(entry.data[FIRMWARE])
 
+    # Auto start the multiprotocol addon if it is in use
     if firmware is ApplicationType.CPC:
         try:
             await check_multi_pan_addon(hass)
@@ -55,18 +84,45 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             data=ZHA_HW_DISCOVERY_DATA,
         )
 
-    await hass.config_entries.async_forward_entry_setups(entry, ["update"])
+    @callback
+    def _scan_serial_ports(hass: HomeAssistant) -> list[USBDevice | SerialDevice]:
+        """Contribute the Yellow's built-in Zigbee radio port."""
+        return [
+            SerialDevice(
+                device=RADIO_DEVICE,
+                serial_number=None,
+                manufacturer=MANUFACTURER,
+                description="Yellow Zigbee Radio",
+            )
+        ]
+
+    entry.async_on_unload(async_register_serial_port_scanner(hass, _scan_serial_ports))
+
+    # Create and store the firmware update coordinator in runtime_data
+    session = async_get_clientsession(hass)
+    coordinator = FirmwareUpdateCoordinator(
+        hass,
+        entry,
+        session,
+        NABU_CASA_FIRMWARE_RELEASES_URL,
+    )
+    entry.runtime_data = HomeAssistantYellowData(coordinator)
+
+    await hass.config_entries.async_forward_entry_setups(entry, ["switch", "update"])
 
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(
+    hass: HomeAssistant, entry: HomeAssistantYellowConfigEntry
+) -> bool:
     """Unload a config entry."""
-    await hass.config_entries.async_unload_platforms(entry, ["update"])
-    return True
+    return await hass.config_entries.async_unload_platforms(entry, ["switch", "update"])
 
 
-async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+async def async_migrate_entry(
+    hass: HomeAssistant, config_entry: HomeAssistantYellowConfigEntry
+) -> bool:
     """Migrate old entry."""
 
     _LOGGER.debug(

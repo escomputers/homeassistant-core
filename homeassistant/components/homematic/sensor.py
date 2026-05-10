@@ -1,7 +1,5 @@
 """Support for HomeMatic sensors."""
 
-from __future__ import annotations
-
 from copy import copy
 import logging
 
@@ -339,9 +337,9 @@ class HMSensor(HMDevice, SensorEntity):
         # No cast, return original value
         return self._hm_get_state()
 
-    def _init_data_struct(self):
+    def _init_data_struct(self) -> None:
         """Generate a data dictionary (self._data) from metadata."""
         if self._state:
             self._data.update({self._state: None})
         else:
-            _LOGGER.critical("Unable to initialize sensor: %s", self._name)
+            _LOGGER.critical("Unable to initialize sensor: %s", self.name)

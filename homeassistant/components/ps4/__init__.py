@@ -1,7 +1,5 @@
 """Support for PlayStation 4 consoles."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 import logging
 import os
@@ -29,7 +27,7 @@ from homeassistant.util.json import JsonObjectType, load_json_object
 
 from .config_flow import PlayStation4FlowHandler  # noqa: F401
 from .const import ATTR_MEDIA_IMAGE_URL, COUNTRYCODE_NAMES, DOMAIN, GAMES_FILE, PS4_DATA
-from .services import register_services
+from .services import async_setup_services
 
 if TYPE_CHECKING:
     from .media_player import PS4Device
@@ -58,7 +56,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         protocol=protocol,
     )
     _LOGGER.debug("PS4 DDP endpoint created: %s, %s", transport, protocol)
-    register_services(hass)
+    async_setup_services(hass)
     return True
 
 
@@ -126,9 +124,9 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 "media_player",
                 DOMAIN,
                 unique_id,
-                suggested_object_id=new_id,
                 config_entry=entry,
                 device_id=e_entry.device_id,
+                object_id_base=new_id,
             )
             _LOGGER.debug(
                 "PlayStation 4 identifier for entity: %s has changed",

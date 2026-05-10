@@ -1,7 +1,5 @@
 """Config flow for fritzbox_callmonitor."""
 
-from __future__ import annotations
-
 from collections.abc import Mapping
 from enum import StrEnum
 from typing import Any, cast
@@ -15,7 +13,7 @@ from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
-    OptionsFlow,
+    OptionsFlowWithReload,
 )
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import callback
@@ -263,7 +261,7 @@ class FritzBoxCallMonitorConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_abort(reason="reauth_successful")
 
 
-class FritzBoxCallMonitorOptionsFlowHandler(OptionsFlow):
+class FritzBoxCallMonitorOptionsFlowHandler(OptionsFlowWithReload):
     """Handle a fritzbox_callmonitor options flow."""
 
     @classmethod

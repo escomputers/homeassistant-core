@@ -1,7 +1,5 @@
 """Update coordinator for IronOS Integration."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
@@ -84,7 +82,7 @@ class IronOSBaseCoordinator[_DataT](DataUpdateCoordinator[_DataT]):
         try:
             self.device_info = await self.device.get_device_info()
 
-        except (CommunicationError, TimeoutError):
+        except CommunicationError, TimeoutError:
             self.device_info = DeviceInfoResponse()
 
         self.v223_features = (
@@ -168,7 +166,9 @@ class IronOSSettingsCoordinator(IronOSBaseCoordinator[SettingsDataResponse]):
 
         if self.device.is_connected and characteristics:
             try:
-                return await self.device.get_settings(list(characteristics))
+                return await self.device.get_settings(
+                    list(characteristics | {CharSetting.TEMP_UNIT})
+                )
             except CommunicationError as e:
                 _LOGGER.debug("Failed to fetch settings", exc_info=e)
 

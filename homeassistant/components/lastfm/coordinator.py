@@ -1,7 +1,5 @@
 """DataUpdateCoordinator for the LastFM integration."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from datetime import timedelta
 
@@ -13,6 +11,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import CONF_USERS, DOMAIN, LOGGER
+
+type LastFMConfigEntry = ConfigEntry[LastFMDataUpdateCoordinator]
 
 
 def format_track(track: Track | None) -> str | None:

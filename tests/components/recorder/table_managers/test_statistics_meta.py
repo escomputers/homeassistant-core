@@ -1,7 +1,5 @@
 """The tests for the Recorder component."""
 
-from __future__ import annotations
-
 import logging
 import threading
 
@@ -87,6 +85,7 @@ async def test_invalid_mean_types(
                 "name": "Total imported energy",
                 "source": "recorder",
                 "statistic_id": "sensor.energy",
+                "unit_class": None,
                 "unit_of_measurement": "kWh",
             },
         ),
@@ -99,6 +98,7 @@ async def test_invalid_mean_types(
                 "name": "Wind direction",
                 "source": "recorder",
                 "statistic_id": "sensor.wind_direction",
+                "unit_class": None,
                 "unit_of_measurement": DEGREE,
             },
         ),
@@ -111,6 +111,7 @@ async def test_invalid_mean_types(
                 "name": "Wind speed",
                 "source": "recorder",
                 "statistic_id": "sensor.wind_speed",
+                "unit_class": None,
                 "unit_of_measurement": "km/h",
             },
         ),

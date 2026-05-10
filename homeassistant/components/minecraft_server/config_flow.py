@@ -1,7 +1,5 @@
 """Config flow for Minecraft Server integration."""
 
-from __future__ import annotations
-
 import logging
 from typing import Any
 
@@ -84,4 +82,5 @@ class MinecraftServerConfigFlow(ConfigFlow, domain=DOMAIN):
                 }
             ),
             errors=errors,
+            description_placeholders={"minimum_minecraft_version": "1.4"},
         )

@@ -1,14 +1,18 @@
 """Constants for the Homewizard integration."""
 
-from __future__ import annotations
-
 from datetime import timedelta
 import logging
 
 from homeassistant.const import Platform
 
 DOMAIN = "homewizard"
-PLATFORMS = [Platform.BUTTON, Platform.NUMBER, Platform.SENSOR, Platform.SWITCH]
+PLATFORMS = [
+    Platform.BUTTON,
+    Platform.NUMBER,
+    Platform.SELECT,
+    Platform.SENSOR,
+    Platform.SWITCH,
+]
 
 LOGGER = logging.getLogger(__package__)
 

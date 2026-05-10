@@ -1,7 +1,5 @@
 """Support for Fast.com internet speed testing sensor."""
 
-from __future__ import annotations
-
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -51,6 +49,8 @@ class SpeedtestSensor(CoordinatorEntity[FastdotcomDataUpdateCoordinator], Sensor
     @property
     def native_value(
         self,
-    ) -> float:
+    ) -> float | None:
         """Return the state of the sensor."""
-        return self.coordinator.data
+        if self.coordinator.data is None:
+            return None
+        return self.coordinator.data.get("download_speed")

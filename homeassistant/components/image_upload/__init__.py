@@ -1,7 +1,5 @@
 """The Image Upload integration."""
 
-from __future__ import annotations
-
 import asyncio
 import logging
 import pathlib
@@ -24,7 +22,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.helpers.typing import ConfigType, VolDictType
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN
+from .const import DOMAIN, FOLDER_IMAGE
 
 _LOGGER = logging.getLogger(__name__)
 STORAGE_KEY = "image"
@@ -45,7 +43,7 @@ CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Image integration."""
-    image_dir = pathlib.Path(hass.config.path("image"))
+    image_dir = pathlib.Path(hass.config.path(FOLDER_IMAGE))
     hass.data[DOMAIN] = storage_collection = ImageStorageCollection(hass, image_dir)
     await storage_collection.async_load()
     ImageUploadStorageCollectionWebsocket(

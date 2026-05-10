@@ -1,31 +1,32 @@
 """Support for command line notification services."""
 
-from __future__ import annotations
-
 import logging
 import subprocess
 from typing import Any
 
-from homeassistant.components.notify import BaseNotificationService
+from homeassistant.components.notify import (
+    DOMAIN as NOTIFY_DOMAIN,
+    BaseNotificationService,
+)
 from homeassistant.const import CONF_COMMAND
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import TemplateError
-from homeassistant.helpers.template import Template
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.util.process import kill_subprocess
 
 from .const import CONF_COMMAND_TIMEOUT, LOGGER
+from .utils import create_platform_yaml_not_supported_issue, render_template_args
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def get_service(
+async def async_get_service(
     hass: HomeAssistant,
     config: ConfigType,
     discovery_info: DiscoveryInfoType | None = None,
 ) -> CommandLineNotificationService | None:
     """Get the Command Line notification service."""
     if not discovery_info:
+        create_platform_yaml_not_supported_issue(hass, NOTIFY_DOMAIN)
         return None
 
     notify_config = discovery_info
@@ -45,28 +46,10 @@ class CommandLineNotificationService(BaseNotificationService):
 
     def send_message(self, message: str = "", **kwargs: Any) -> None:
         """Send a message to a command line."""
-        command = self.command
-        if " " not in command:
-            prog = command
-            args = None
-            args_compiled = None
-        else:
-            prog, args = command.split(" ", 1)
-            args_compiled = Template(args, self.hass)
+        if not (command := render_template_args(self.hass, self.command)):
+            return
 
-        rendered_args = None
-        if args_compiled:
-            args_to_render = {"arguments": args}
-            try:
-                rendered_args = args_compiled.async_render(args_to_render)
-            except TemplateError as ex:
-                LOGGER.exception("Error rendering command template: %s", ex)
-                return
-
-        if rendered_args != args:
-            command = f"{prog} {rendered_args}"
-
-        LOGGER.debug("Running command: %s, with message: %s", command, message)
+        LOGGER.debug("Running with message: %s", message)
 
         with subprocess.Popen(  # noqa: S602 # shell by design
             command,

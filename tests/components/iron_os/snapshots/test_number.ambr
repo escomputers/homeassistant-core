@@ -1,12 +1,13 @@
 # serializer version: 1
 # name: test_state[number.pinecil_boost_temperature-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 450,
-      'min': 0,
+      'min': 250,
       'mode': <NumberMode.BOX: 'box'>,
       'step': 10,
     }),
@@ -25,9 +26,10 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Boost temperature',
     'options': dict({
     }),
-    'original_device_class': <NumberDeviceClass.TEMPERATURE: 'temperature'>,
+    'original_device_class': None,
     'original_icon': None,
     'original_name': 'Boost temperature',
     'platform': 'iron_os',
@@ -42,10 +44,9 @@
 # name: test_state[number.pinecil_boost_temperature-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'device_class': 'temperature',
       'friendly_name': 'Pinecil Boost temperature',
       'max': 450,
-      'min': 0,
+      'min': 250,
       'mode': <NumberMode.BOX: 'box'>,
       'step': 10,
       'unit_of_measurement': <UnitOfTemperature.CELSIUS: '°C'>,
@@ -60,8 +61,9 @@
 # ---
 # name: test_state[number.pinecil_calibration_offset-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 2500,
@@ -84,6 +86,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Calibration offset',
     'options': dict({
     }),
     'original_device_class': None,
@@ -95,7 +98,7 @@
     'supported_features': 0,
     'translation_key': <PinecilNumber.CALIBRATION_OFFSET: 'calibration_offset'>,
     'unique_id': 'c0:ff:ee:c0:ff:ee_calibration_offset',
-    'unit_of_measurement': <UnitOfElectricPotential.MICROVOLT: 'µV'>,
+    'unit_of_measurement': <UnitOfElectricPotential.MICROVOLT: 'μV'>,
   })
 # ---
 # name: test_state[number.pinecil_calibration_offset-state]
@@ -106,7 +109,7 @@
       'min': 100,
       'mode': <NumberMode.BOX: 'box'>,
       'step': 1,
-      'unit_of_measurement': <UnitOfElectricPotential.MICROVOLT: 'µV'>,
+      'unit_of_measurement': <UnitOfElectricPotential.MICROVOLT: 'μV'>,
     }),
     'context': <ANY>,
     'entity_id': 'number.pinecil_calibration_offset',
@@ -118,8 +121,9 @@
 # ---
 # name: test_state[number.pinecil_display_brightness-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 5,
@@ -142,6 +146,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Display brightness',
     'options': dict({
     }),
     'original_device_class': None,
@@ -175,8 +180,9 @@
 # ---
 # name: test_state[number.pinecil_hall_effect_sensitivity-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 9,
@@ -199,6 +205,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Hall effect sensitivity',
     'options': dict({
     }),
     'original_device_class': None,
@@ -232,8 +239,9 @@
 # ---
 # name: test_state[number.pinecil_hall_sensor_sleep_timeout-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 60,
@@ -256,6 +264,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Hall sensor sleep timeout',
     'options': dict({
     }),
     'original_device_class': None,
@@ -290,8 +299,9 @@
 # ---
 # name: test_state[number.pinecil_keep_awake_pulse_delay-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 22.5,
@@ -314,6 +324,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Keep-awake pulse delay',
     'options': dict({
     }),
     'original_device_class': None,
@@ -348,8 +359,9 @@
 # ---
 # name: test_state[number.pinecil_keep_awake_pulse_duration-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 2250,
@@ -372,6 +384,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Keep-awake pulse duration',
     'options': dict({
     }),
     'original_device_class': None,
@@ -406,8 +419,9 @@
 # ---
 # name: test_state[number.pinecil_keep_awake_pulse_intensity-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 9.9,
@@ -430,6 +444,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Keep-awake pulse intensity',
     'options': dict({
     }),
     'original_device_class': None,
@@ -464,8 +479,9 @@
 # ---
 # name: test_state[number.pinecil_long_press_temperature_step-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 90,
@@ -488,6 +504,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Long-press temperature step',
     'options': dict({
     }),
     'original_device_class': None,
@@ -522,8 +539,9 @@
 # ---
 # name: test_state[number.pinecil_min_voltage_per_cell-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 3.8,
@@ -546,6 +564,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Min. voltage per cell',
     'options': dict({
     }),
     'original_device_class': None,
@@ -580,8 +599,9 @@
 # ---
 # name: test_state[number.pinecil_motion_sensitivity-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 9,
@@ -604,6 +624,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Motion sensitivity',
     'options': dict({
     }),
     'original_device_class': None,
@@ -637,8 +658,9 @@
 # ---
 # name: test_state[number.pinecil_power_delivery_timeout-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 5.0,
@@ -661,6 +683,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Power Delivery timeout',
     'options': dict({
     }),
     'original_device_class': <NumberDeviceClass.DURATION: 'duration'>,
@@ -696,8 +719,9 @@
 # ---
 # name: test_state[number.pinecil_power_limit-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 120,
@@ -720,6 +744,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Power limit',
     'options': dict({
     }),
     'original_device_class': None,
@@ -754,8 +779,9 @@
 # ---
 # name: test_state[number.pinecil_quick_charge_voltage-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 22.0,
@@ -778,6 +804,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Quick Charge voltage',
     'options': dict({
     }),
     'original_device_class': <NumberDeviceClass.VOLTAGE: 'voltage'>,
@@ -813,14 +840,15 @@
 # ---
 # name: test_state[number.pinecil_setpoint_temperature-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 450,
       'min': 10,
       'mode': <NumberMode.BOX: 'box'>,
-      'step': 5,
+      'step': 1,
     }),
     'config_entry_id': <ANY>,
     'config_subentry_id': <ANY>,
@@ -837,9 +865,10 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Setpoint temperature',
     'options': dict({
     }),
-    'original_device_class': <NumberDeviceClass.TEMPERATURE: 'temperature'>,
+    'original_device_class': None,
     'original_icon': None,
     'original_name': 'Setpoint temperature',
     'platform': 'iron_os',
@@ -854,12 +883,11 @@
 # name: test_state[number.pinecil_setpoint_temperature-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'device_class': 'temperature',
       'friendly_name': 'Pinecil Setpoint temperature',
       'max': 450,
       'min': 10,
       'mode': <NumberMode.BOX: 'box'>,
-      'step': 5,
+      'step': 1,
       'unit_of_measurement': <UnitOfTemperature.CELSIUS: '°C'>,
     }),
     'context': <ANY>,
@@ -872,8 +900,9 @@
 # ---
 # name: test_state[number.pinecil_short_press_temperature_step-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 50,
@@ -896,6 +925,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Short-press temperature step',
     'options': dict({
     }),
     'original_device_class': None,
@@ -930,8 +960,9 @@
 # ---
 # name: test_state[number.pinecil_shutdown_timeout-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 60,
@@ -954,6 +985,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Shutdown timeout',
     'options': dict({
     }),
     'original_device_class': <NumberDeviceClass.DURATION: 'duration'>,
@@ -989,8 +1021,9 @@
 # ---
 # name: test_state[number.pinecil_sleep_temperature-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 450,
@@ -1013,9 +1046,10 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Sleep temperature',
     'options': dict({
     }),
-    'original_device_class': <NumberDeviceClass.TEMPERATURE: 'temperature'>,
+    'original_device_class': None,
     'original_icon': None,
     'original_name': 'Sleep temperature',
     'platform': 'iron_os',
@@ -1030,7 +1064,6 @@
 # name: test_state[number.pinecil_sleep_temperature-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      'device_class': 'temperature',
       'friendly_name': 'Pinecil Sleep temperature',
       'max': 450,
       'min': 10,
@@ -1048,8 +1081,9 @@
 # ---
 # name: test_state[number.pinecil_sleep_timeout-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 15,
@@ -1072,6 +1106,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Sleep timeout',
     'options': dict({
     }),
     'original_device_class': None,
@@ -1106,8 +1141,9 @@
 # ---
 # name: test_state[number.pinecil_voltage_divider-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'max': 900,
@@ -1130,6 +1166,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': 'Voltage divider',
     'options': dict({
     }),
     'original_device_class': None,

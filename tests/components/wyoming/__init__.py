@@ -3,6 +3,7 @@
 import asyncio
 from unittest.mock import patch
 
+from wyoming.asr import Transcript
 from wyoming.event import Event
 from wyoming.info import (
     AsrModel,
@@ -21,7 +22,6 @@ from wyoming.info import (
     WakeProgram,
 )
 
-from homeassistant.components.wyoming import DOMAIN
 from homeassistant.components.wyoming.devices import SatelliteDevice
 from homeassistant.core import HomeAssistant
 
@@ -66,6 +66,29 @@ TTS_INFO = Info(
                 )
             ],
             version=None,
+        )
+    ]
+)
+TTS_STREAMING_INFO = Info(
+    tts=[
+        TtsProgram(
+            name="Test Streaming TTS",
+            description="Test Streaming TTS",
+            installed=True,
+            attribution=TEST_ATTR,
+            voices=[
+                TtsVoice(
+                    name="Test Voice",
+                    description="Test Voice",
+                    installed=True,
+                    attribution=TEST_ATTR,
+                    languages=["en-US"],
+                    speakers=[TtsVoiceSpeaker(name="Test Speaker")],
+                    version=None,
+                )
+            ],
+            version=None,
+            supports_synthesize_streaming=True,
         )
     ]
 )
@@ -149,19 +172,29 @@ EMPTY_INFO = Info()
 class MockAsyncTcpClient:
     """Mock AsyncTcpClient."""
 
-    def __init__(self, responses: list[Event]) -> None:
+    def __init__(self, responses: list[Event | None]) -> None:
         """Initialize."""
         self.host: str | None = None
         self.port: int | None = None
         self.written: list[Event] = []
         self.responses = responses
+        self.is_connected: bool | None = None
+        self.transcript: Transcript | None = None
 
     async def connect(self) -> None:
         """Connect."""
+        self.is_connected = True
+
+    async def disconnect(self) -> None:
+        """Disconnect."""
+        self.is_connected = False
 
     async def write_event(self, event: Event):
         """Send."""
         self.written.append(event)
+
+        if Transcript.is_type(event.type):
+            self.transcript = Transcript.from_event(event)
 
     async def read_event(self) -> Event | None:
         """Receive."""
@@ -202,4 +235,6 @@ async def reload_satellite(
         # _run_mock: satellite task does not actually run
         await hass.config_entries.async_reload(config_entry_id)
 
-    return hass.data[DOMAIN][config_entry_id].device
+    entry = hass.config_entries.async_get_entry(config_entry_id)
+    assert entry is not None
+    return entry.runtime_data.device

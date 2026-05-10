@@ -1,7 +1,5 @@
 """Support for Goal Zero Yeti Sensors."""
 
-from __future__ import annotations
-
 from typing import cast
 
 from homeassistant.components.sensor import (
@@ -109,6 +107,7 @@ SENSOR_TYPES: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
         key="timestamp",
         translation_key="timestamp",
+        device_class=SensorDeviceClass.DURATION,
         native_unit_of_measurement=UnitOfTime.SECONDS,
         entity_registry_enabled_default=False,
         entity_category=EntityCategory.DIAGNOSTIC,

@@ -1,7 +1,5 @@
 """Platform for Kostal Plenticore sensors."""
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import timedelta
@@ -14,7 +12,6 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     PERCENTAGE,
     EntityCategory,
@@ -29,8 +26,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
-from .coordinator import ProcessDataUpdateCoordinator
+from .coordinator import PlenticoreConfigEntry, ProcessDataUpdateCoordinator
 from .helper import PlenticoreDataFormatter
 
 _LOGGER = logging.getLogger(__name__)
@@ -247,6 +243,7 @@ SENSOR_PROCESS_DATA = [
         name="Battery SoC",
         native_unit_of_measurement=PERCENTAGE,
         device_class=SensorDeviceClass.BATTERY,
+        state_class=SensorStateClass.MEASUREMENT,
         formatter="format_round",
     ),
     PlenticoreSensorEntityDescription(
@@ -808,11 +805,11 @@ SENSOR_PROCESS_DATA = [
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: PlenticoreConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Add kostal plenticore Sensors."""
-    plenticore = hass.data[DOMAIN][entry.entry_id]
+    plenticore = entry.runtime_data
 
     entities = []
 

@@ -1,7 +1,5 @@
 """The NASweb integration."""
 
-from __future__ import annotations
-
 import logging
 
 from webio_api import WebioAPI
@@ -19,7 +17,12 @@ from .const import DOMAIN, MANUFACTURER, SUPPORT_EMAIL
 from .coordinator import NASwebCoordinator
 from .nasweb_data import NASwebData
 
-PLATFORMS: list[Platform] = [Platform.SWITCH]
+PLATFORMS: list[Platform] = [
+    Platform.ALARM_CONTROL_PANEL,
+    Platform.CLIMATE,
+    Platform.SENSOR,
+    Platform.SWITCH,
+]
 
 NASWEB_CONFIG_URL = "https://{host}/page"
 

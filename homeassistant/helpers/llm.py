@@ -1,7 +1,5 @@
 """Module to coordinate llm tools."""
 
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass, field as dc_field
@@ -58,7 +56,7 @@ ACTION_PARAMETERS_CACHE: HassKey[
 
 LLM_API_ASSIST = "assist"
 
-BASE_PROMPT = (
+DATE_TIME_PROMPT = (
     'Current time is {{ now().strftime("%H:%M:%S") }}. '
     'Today\'s date is {{ now().strftime("%Y-%m-%d") }}.\n'
 )
@@ -160,11 +158,19 @@ class LLMContext:
     """Tool input to be processed."""
 
     platform: str
+    """Integration that is handling the LLM request."""
+
     context: Context | None
-    user_prompt: str | None
+    """Context of the LLM request."""
+
     language: str | None
+    """Language of the LLM request."""
+
     assistant: str | None
+    """Assistant domain that is handling the LLM request."""
+
     device_id: str | None
+    """Device that is making the request."""
 
 
 @dataclass(slots=True)
@@ -175,6 +181,7 @@ class ToolInput:
     tool_args: dict[str, Any]
     # Using lambda for default to allow patching in tests
     id: str = dc_field(default_factory=lambda: ulid_now())  # pylint: disable=unnecessary-lambda
+    external: bool = False
 
 
 class Tool:
@@ -208,8 +215,7 @@ class APIInstance:
 
     async def async_call_tool(self, tool_input: ToolInput) -> JsonObjectType:
         """Call a LLM tool, validate args and return the response."""
-        # pylint: disable=import-outside-toplevel
-        from homeassistant.components.conversation import (
+        from homeassistant.components.conversation import (  # noqa: PLC0415
             ConversationTraceEventType,
             async_conversation_trace_append,
         )
@@ -302,16 +308,29 @@ class IntentTool(Tool):
             platform=llm_context.platform,
             intent_type=self.name,
             slots=slots,
-            text_input=llm_context.user_prompt,
+            text_input=None,
             context=llm_context.context,
             language=llm_context.language,
             assistant=llm_context.assistant,
             device_id=llm_context.device_id,
         )
-        response = intent_response.as_dict()
-        del response["language"]
-        del response["card"]
-        return response
+        return IntentResponseDict(intent_response)
+
+
+class IntentResponseDict(dict):
+    """Dictionary to represent an intent response resulting from a tool call."""
+
+    def __init__(self, intent_response: Any) -> None:
+        """Initialize the dictionary."""
+        if not isinstance(intent_response, intent.IntentResponse):
+            super().__init__(intent_response)
+            return
+
+        result = intent_response.as_dict()
+        del result["language"]
+        del result["card"]
+        super().__init__(result)
+        self.original = intent_response
 
 
 class NamespacedTool(Tool):
@@ -324,7 +343,7 @@ class NamespacedTool(Tool):
     def __init__(self, namespace: str, tool: Tool) -> None:
         """Init the class."""
         self.namespace = namespace
-        self.name = f"{namespace}.{tool.name}"
+        self.name = f"{namespace}__{tool.name}"
         self.description = tool.description
         self.parameters = tool.parameters
         self.tool = tool
@@ -451,7 +470,7 @@ class AssistAPI(API):
             api_prompt=self._async_get_api_prompt(llm_context, exposed_entities),
             llm_context=llm_context,
             tools=self._async_get_tools(llm_context, exposed_entities),
-            custom_serializer=_selector_serializer,
+            custom_serializer=selector_serializer,
         )
 
     @callback
@@ -571,6 +590,8 @@ class AssistAPI(API):
             for intent_handler in intent_handlers
         ]
 
+        tools.append(GetDateTimeTool())
+
         if exposed_entities:
             if exposed_entities[CALENDAR_DOMAIN]:
                 names = []
@@ -635,28 +656,35 @@ def _get_exposed_entities(
         if not async_should_expose(hass, assistant, state.entity_id):
             continue
 
-        description: str | None = None
         entity_entry = entity_registry.async_get(state.entity_id)
-        names = [state.name]
+        device_entry = (
+            device_registry.async_get(entity_entry.device_id)
+            if entity_entry is not None and entity_entry.device_id is not None
+            else None
+        )
+        names = intent.async_get_entity_aliases(hass, entity_entry, state=state)
         area_names = []
 
         if entity_entry is not None:
-            names.extend(entity_entry.aliases)
-            if entity_entry.area_id and (
-                area := area_registry.async_get_area(entity_entry.area_id)
+            if (
+                entity_entry.area_id is not None
+                and (area_entry := area_registry.async_get_area(entity_entry.area_id))
+                is not None
             ):
                 # Entity is in area
-                area_names.append(area.name)
-                area_names.extend(area.aliases)
-            elif entity_entry.device_id and (
-                device := device_registry.async_get(entity_entry.device_id)
-            ):
+                area_names.append(area_entry.name)
+                area_names.extend(area_entry.aliases)
+            elif device_entry is not None:
                 # Check device area
-                if device.area_id and (
-                    area := area_registry.async_get_area(device.area_id)
+                if (
+                    device_entry.area_id is not None
+                    and (
+                        area_entry := area_registry.async_get_area(device_entry.area_id)
+                    )
+                    is not None
                 ):
-                    area_names.append(area.name)
-                    area_names.extend(area.aliases)
+                    area_names.append(area_entry.name)
+                    area_names.extend(area_entry.aliases)
 
         info: dict[str, Any] = {
             "names": ", ".join(names),
@@ -666,8 +694,10 @@ def _get_exposed_entities(
         if include_state:
             info["state"] = state.state
 
-        if description:
-            info["description"] = description
+            # Convert timestamp device_class states from UTC to local time
+            if state.attributes.get("device_class") == "timestamp" and state.state:
+                if (parsed_utc := dt_util.parse_datetime(state.state)) is not None:
+                    info["state"] = dt_util.as_local(parsed_utc).isoformat()
 
         if area_names:
             info["areas"] = ", ".join(area_names)
@@ -694,7 +724,7 @@ def _get_exposed_entities(
     return data
 
 
-def _selector_serializer(schema: Any) -> Any:  # noqa: C901
+def selector_serializer(schema: Any) -> Any:  # noqa: C901
     """Convert selectors into OpenAPI schema."""
     if not isinstance(schema, selector.Selector):
         return UNSUPPORTED
@@ -758,8 +788,18 @@ def _selector_serializer(schema: Any) -> Any:  # noqa: C901
             return {"type": "string", "enum": schema.config["languages"]}
         return {"type": "string", "format": "RFC 5646"}
 
-    if isinstance(schema, (selector.LocationSelector, selector.MediaSelector)):
+    if isinstance(schema, selector.LocationSelector):
         return convert(schema.DATA_SCHEMA)
+
+    if isinstance(schema, selector.MediaSelector):
+        item_schema = convert(schema.DATA_SCHEMA)
+        # Media selector allows multiple when configured
+        if schema.config.get("multiple"):
+            return {
+                "type": "array",
+                "items": item_schema,
+            }
+        return item_schema
 
     if isinstance(schema, selector.NumberSelector):
         result = {"type": "number"}
@@ -770,7 +810,29 @@ def _selector_serializer(schema: Any) -> Any:  # noqa: C901
         return result
 
     if isinstance(schema, selector.ObjectSelector):
-        return {"type": "object", "additionalProperties": True}
+        result = {"type": "object"}
+        if fields := schema.config.get("fields"):
+            properties = {}
+            required = []
+            for field, field_schema in fields.items():
+                properties[field] = convert(
+                    selector.selector(field_schema["selector"]),
+                    custom_serializer=selector_serializer,
+                )
+                if field_schema.get("required"):
+                    required.append(field)
+            result["properties"] = properties
+
+            if required:
+                result["required"] = required
+        else:
+            result["additionalProperties"] = True
+        if schema.config.get("multiple"):
+            result = {
+                "type": "array",
+                "items": result,
+            }
+        return result
 
     if isinstance(schema, selector.SelectSelector):
         options = [
@@ -785,7 +847,7 @@ def _selector_serializer(schema: Any) -> Any:  # noqa: C901
         return {"type": "string", "enum": options}
 
     if isinstance(schema, selector.TargetSelector):
-        return convert(cv.TARGET_SERVICE_FIELDS)
+        return convert(cv.TARGET_FIELDS)
 
     if isinstance(schema, selector.TemplateSelector):
         return {"type": "string", "format": "jinja2"}
@@ -863,12 +925,10 @@ def _get_cached_action_parameters(
             entity_registry = er.async_get(hass)
             if (
                 entity_id := entity_registry.async_get_entity_id(domain, domain, action)
-            ) and (entity_entry := entity_registry.async_get(entity_id)):
-                aliases: list[str] = []
-                if entity_entry.name:
-                    aliases.append(entity_entry.name)
-                if entity_entry.aliases:
-                    aliases.extend(entity_entry.aliases)
+            ) is not None and (
+                entity_entry := entity_registry.async_get(entity_id)
+            ) is not None:
+                aliases = er.async_get_entity_aliases(hass, entity_entry)
                 if aliases:
                     if description:
                         description = description + ". Aliases: " + str(list(aliases))
@@ -892,7 +952,13 @@ class ActionTool(Tool):
         """Init the class."""
         self._domain = domain
         self._action = action
-        self.name = f"{domain}.{action}"
+        self.name = f"{domain}__{action}"
+        # Note: _get_cached_action_parameters only works for services which
+        # add their description directly to the service description cache.
+        # This is not the case for most services, but it is for scripts.
+        # If we want to use `ActionTool` for services other than scripts, we
+        # need to add a coroutine function to fetch the non-cached description
+        # and schema.
         self.description, self.parameters = _get_cached_action_parameters(
             hass, domain, action
         )
@@ -1092,6 +1158,26 @@ class TodoGetItemsTool(Tool):
         return {"success": True, "result": items}
 
 
+def _live_context_match_error(
+    match_result: intent.MatchTargetsResult,
+    name_filter: str | None,
+    area_filter: str | None,
+    domain_filter: list[str] | None,
+) -> str:
+    """Build an actionable error message for a failed GetLiveContext match."""
+    reason = match_result.no_match_reason
+    if reason is intent.MatchFailedReason.INVALID_AREA:
+        return f"Area '{match_result.no_match_name}' does not exist"
+    if reason is intent.MatchFailedReason.NAME:
+        return f"No exposed entities matched name '{name_filter}'"
+    if reason is intent.MatchFailedReason.AREA:
+        return f"No exposed entities found in area '{area_filter}'"
+    if reason is intent.MatchFailedReason.DOMAIN:
+        domains = ", ".join(domain_filter) if domain_filter else ""
+        return f"No exposed entities found in domain(s): {domains}"
+    return "No entities matched the provided filter"
+
+
 class GetLiveContextTool(Tool):
     """Tool for getting the current state of exposed entities.
 
@@ -1105,7 +1191,25 @@ class GetLiveContextTool(Tool):
         "Provides real-time information about the CURRENT state, value, or mode of devices, sensors, entities, or areas. "
         "Use this tool for: "
         "1. Answering questions about current conditions (e.g., 'Is the light on?'). "
-        "2. As the first step in conditional actions (e.g., 'If the weather is rainy, turn off sprinklers' requires checking the weather first)."
+        "2. As the first step in conditional actions (e.g., 'If the weather is rainy, turn off sprinklers' requires checking the weather first). "
+        "You may filter for devices by name, domain, and area, including combining those filters. "
+        "Prefer filtering by domain when searching for multiple devices of the same type."
+    )
+    parameters = vol.Schema(
+        {
+            vol.Optional(
+                "name",
+                description="Filter entities by name or alias (case-insensitive).",
+            ): cv.string,
+            vol.Optional(
+                "domain",
+                description="Filter entities by domain (e.g. 'light', 'sensor'). Accepts a single domain or a list.",
+            ): vol.Any(cv.string, [cv.string]),
+            vol.Optional(
+                "area",
+                description="Filter entities by area name or alias (case-insensitive).",
+            ): cv.string,
+        }
     )
 
     async def async_call(
@@ -1120,14 +1224,90 @@ class GetLiveContextTool(Tool):
             # exposed if no assistant is configured.
             return {"success": False, "error": "No assistant configured"}
 
+        args = self.parameters(tool_input.tool_args)
         exposed_entities = _get_exposed_entities(hass, llm_context.assistant)
+
         if not exposed_entities["entities"]:
             return {"success": False, "error": NO_ENTITIES_PROMPT}
+
+        name_filter = args.get("name")
+        area_filter = args.get("area")
+        domain_filter = args.get("domain")
+
+        if isinstance(domain_filter, str):
+            domain_filter = [domain_filter]
+
+        if domain_filter is not None:
+            domain_filter = [
+                normalized_domain
+                for domain in domain_filter
+                if (normalized_domain := domain.strip().lower())
+            ]
+
+        if name_filter or area_filter or domain_filter:
+            exposed_states = [
+                state
+                for entity_id in exposed_entities["entities"]
+                if (state := hass.states.get(entity_id)) is not None
+            ]
+            match_result = intent.async_match_targets(
+                hass,
+                intent.MatchTargetsConstraints(
+                    name=name_filter,
+                    area_name=area_filter,
+                    domains=domain_filter,
+                ),
+                states=exposed_states,
+            )
+
+            if not match_result.is_match:
+                return {
+                    "success": False,
+                    "error": _live_context_match_error(
+                        match_result, name_filter, area_filter, domain_filter
+                    ),
+                }
+
+            matched_ids = {state.entity_id for state in match_result.states}
+            entities = [
+                info
+                for entity_id, info in exposed_entities["entities"].items()
+                if entity_id in matched_ids
+            ]
+        else:
+            entities = list(exposed_entities["entities"].values())
+
         prompt = [
             "Live Context: An overview of the areas and the devices in this smart home:",
-            yaml_util.dump(list(exposed_entities["entities"].values())),
+            yaml_util.dump(entities),
         ]
         return {
             "success": True,
             "result": "\n".join(prompt),
+        }
+
+
+class GetDateTimeTool(Tool):
+    """Tool for getting the current date and time."""
+
+    name = "GetDateTime"
+    description = "Provides the current date and time."
+
+    async def async_call(
+        self,
+        hass: HomeAssistant,
+        tool_input: ToolInput,
+        llm_context: LLMContext,
+    ) -> JsonObjectType:
+        """Get the current date and time."""
+        now = dt_util.now()
+
+        return {
+            "success": True,
+            "result": {
+                "date": now.strftime("%Y-%m-%d"),
+                "time": now.strftime("%H:%M:%S"),
+                "timezone": now.strftime("%Z"),
+                "weekday": now.strftime("%A"),
+            },
         }

@@ -1,8 +1,9 @@
 # serializer version: 1
 # name: test_entity[climate.bureau-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'hvac_modes': list([
@@ -34,6 +35,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': None,
     'options': dict({
     }),
     'original_device_class': None,
@@ -78,8 +80,9 @@
 # ---
 # name: test_entity[climate.cocina-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'hvac_modes': list([
@@ -111,6 +114,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': None,
     'options': dict({
     }),
     'original_device_class': None,
@@ -147,6 +151,7 @@
         'schedule',
       ]),
       'selected_schedule': 'Default',
+      'selected_schedule_id': '591b54a2764ff4d50d8b5795',
       'supported_features': <ClimateEntityFeature: 401>,
       'target_temp_step': 0.5,
       'temperature': 7,
@@ -161,8 +166,9 @@
 # ---
 # name: test_entity[climate.corridor-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'hvac_modes': list([
@@ -194,6 +200,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': None,
     'options': dict({
     }),
     'original_device_class': None,
@@ -229,6 +236,7 @@
         'schedule',
       ]),
       'selected_schedule': 'Default',
+      'selected_schedule_id': '591b54a2764ff4d50d8b5795',
       'supported_features': <ClimateEntityFeature: 401>,
       'target_temp_step': 0.5,
       'temperature': 22,
@@ -243,8 +251,9 @@
 # ---
 # name: test_entity[climate.entrada-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'hvac_modes': list([
@@ -276,6 +285,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': None,
     'options': dict({
     }),
     'original_device_class': None,
@@ -312,6 +322,7 @@
         'schedule',
       ]),
       'selected_schedule': 'Default',
+      'selected_schedule_id': '591b54a2764ff4d50d8b5795',
       'supported_features': <ClimateEntityFeature: 401>,
       'target_temp_step': 0.5,
       'temperature': 7,
@@ -326,8 +337,9 @@
 # ---
 # name: test_entity[climate.livingroom-entry]
   EntityRegistryEntrySnapshot({
-    'aliases': set({
-    }),
+    'aliases': list([
+      None,
+    ]),
     'area_id': None,
     'capabilities': dict({
       'hvac_modes': list([
@@ -360,6 +372,7 @@
     'labels': set({
     }),
     'name': None,
+    'object_id_base': None,
     'options': dict({
     }),
     'original_device_class': None,
@@ -396,6 +409,7 @@
         'schedule',
       ]),
       'selected_schedule': 'Default',
+      'selected_schedule_id': '591b54a2764ff4d50d8b5795',
       'supported_features': <ClimateEntityFeature: 401>,
       'target_temp_step': 0.5,
       'temperature': 12,

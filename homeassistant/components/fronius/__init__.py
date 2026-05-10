@@ -1,7 +1,5 @@
 """The Fronius integration."""
 
-from __future__ import annotations
-
 import asyncio
 from datetime import datetime, timedelta
 import logging
@@ -106,6 +104,7 @@ class FroniusSolarNet:
                 solar_net=self,
                 logger=_LOGGER,
                 name=f"{DOMAIN}_logger_{self.host}",
+                config_entry=self.config_entry,
             )
             await self.logger_coordinator.async_config_entry_first_refresh()
 
@@ -120,6 +119,7 @@ class FroniusSolarNet:
                 solar_net=self,
                 logger=_LOGGER,
                 name=f"{DOMAIN}_meters_{self.host}",
+                config_entry=self.config_entry,
             )
         )
 
@@ -129,6 +129,7 @@ class FroniusSolarNet:
                 solar_net=self,
                 logger=_LOGGER,
                 name=f"{DOMAIN}_ohmpilot_{self.host}",
+                config_entry=self.config_entry,
             )
         )
 
@@ -138,6 +139,7 @@ class FroniusSolarNet:
                 solar_net=self,
                 logger=_LOGGER,
                 name=f"{DOMAIN}_power_flow_{self.host}",
+                config_entry=self.config_entry,
             )
         )
 
@@ -147,6 +149,7 @@ class FroniusSolarNet:
                 solar_net=self,
                 logger=_LOGGER,
                 name=f"{DOMAIN}_storages_{self.host}",
+                config_entry=self.config_entry,
             )
         )
 
@@ -206,6 +209,7 @@ class FroniusSolarNet:
                 logger=_LOGGER,
                 name=_inverter_name,
                 inverter_info=_inverter_info,
+                config_entry=self.config_entry,
             )
             if self.config_entry.state == ConfigEntryState.LOADED:
                 await _coordinator.async_refresh()

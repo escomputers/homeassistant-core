@@ -1,7 +1,5 @@
 """Provides device triggers for lutron caseta."""
 
-from __future__ import annotations
-
 import logging
 from typing import cast
 
@@ -21,6 +19,7 @@ from homeassistant.helpers.trigger import TriggerActionType, TriggerInfo
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
+    ACTION_MULTITAP,
     ACTION_PRESS,
     ACTION_RELEASE,
     ATTR_ACTION,
@@ -39,7 +38,7 @@ def _reverse_dict(forward_dict: dict) -> dict:
     return {v: k for k, v in forward_dict.items()}
 
 
-SUPPORTED_INPUTS_EVENTS_TYPES = [ACTION_PRESS, ACTION_RELEASE]
+SUPPORTED_INPUTS_EVENTS_TYPES = [ACTION_PRESS, ACTION_MULTITAP, ACTION_RELEASE]
 
 LUTRON_BUTTON_TRIGGER_SCHEMA = DEVICE_TRIGGER_BASE_SCHEMA.extend(
     {

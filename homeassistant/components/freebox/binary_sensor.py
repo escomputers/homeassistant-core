@@ -1,7 +1,5 @@
 """Support for Freebox devices (Freebox v6 and Freebox mini 4K)."""
 
-from __future__ import annotations
-
 import logging
 from typing import Any
 
@@ -50,12 +48,12 @@ async def async_setup_entry(
 
     for node in router.home_devices.values():
         if node["category"] == FreeboxHomeCategory.PIR:
-            binary_entities.append(FreeboxPirSensor(hass, router, node))
+            binary_entities.append(FreeboxPirSensor(router, node))
         elif node["category"] == FreeboxHomeCategory.DWS:
-            binary_entities.append(FreeboxDwsSensor(hass, router, node))
+            binary_entities.append(FreeboxDwsSensor(router, node))
 
         binary_entities.extend(
-            FreeboxCoverSensor(hass, router, node)
+            FreeboxCoverSensor(router, node)
             for endpoint in node["show_endpoints"]
             if (
                 endpoint["name"] == "cover"
@@ -74,13 +72,12 @@ class FreeboxHomeBinarySensor(FreeboxHomeEntity, BinarySensorEntity):
 
     def __init__(
         self,
-        hass: HomeAssistant,
         router: FreeboxRouter,
         node: dict[str, Any],
         sub_node: dict[str, Any] | None = None,
     ) -> None:
         """Initialize a Freebox binary sensor."""
-        super().__init__(hass, router, node, sub_node)
+        super().__init__(router, node, sub_node)
         self._command_id = self.get_command_id(
             node["type"]["endpoints"], "signal", self._sensor_name
         )
@@ -123,18 +120,16 @@ class FreeboxCoverSensor(FreeboxHomeBinarySensor):
 
     _sensor_name = "cover"
 
-    def __init__(
-        self, hass: HomeAssistant, router: FreeboxRouter, node: dict[str, Any]
-    ) -> None:
+    def __init__(self, router: FreeboxRouter, node: dict[str, Any]) -> None:
         """Initialize a cover for another device."""
         cover_node = next(
             filter(
-                lambda x: (x["name"] == self._sensor_name and x["ep_type"] == "signal"),
+                lambda x: x["name"] == self._sensor_name and x["ep_type"] == "signal",
                 node["type"]["endpoints"],
             ),
             None,
         )
-        super().__init__(hass, router, node, cover_node)
+        super().__init__(router, node, cover_node)
 
 
 class FreeboxRaidDegradedSensor(BinarySensorEntity):

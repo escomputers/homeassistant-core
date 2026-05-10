@@ -1,15 +1,21 @@
 """Tests for the Google Generative AI Conversation integration conversation platform."""
 
-from collections.abc import Generator
+import datetime
 from unittest.mock import AsyncMock, patch
 
 from freezegun import freeze_time
 from google.genai.types import GenerateContentResponse
 import pytest
+from syrupy.assertion import SnapshotAssertion
 
 from homeassistant.components import conversation
-from homeassistant.components.conversation import UserContent
-from homeassistant.components.google_generative_ai_conversation.conversation import (
+from homeassistant.components.conversation import (
+    AssistantContent,
+    ToolResultContent,
+    UserContent,
+    trace,
+)
+from homeassistant.components.google_generative_ai_conversation.entity import (
     ERROR_GETTING_RESPONSE,
     _escape_decode,
     _format_schema,
@@ -17,6 +23,7 @@ from homeassistant.components.google_generative_ai_conversation.conversation imp
 from homeassistant.const import CONF_LLM_HASS_API
 from homeassistant.core import Context, HomeAssistant
 from homeassistant.helpers import intent
+from homeassistant.helpers.llm import ToolInput
 
 from . import API_ERROR_500, CLIENT_ERROR_BAD_REQUEST
 
@@ -39,25 +46,6 @@ def mock_ulid_tools():
     """Mock generated ULIDs for tool calls."""
     with patch("homeassistant.helpers.llm.ulid_now", return_value="mock-tool-call"):
         yield
-
-
-@pytest.fixture
-def mock_send_message_stream() -> Generator[AsyncMock]:
-    """Mock stream response."""
-
-    async def mock_generator(stream):
-        for value in stream:
-            yield value
-
-    with patch(
-        "google.genai.chats.AsyncChat.send_message_stream",
-        AsyncMock(),
-    ) as mock_send_message_stream:
-        mock_send_message_stream.side_effect = lambda **kwargs: mock_generator(
-            mock_send_message_stream.return_value.pop(0)
-        )
-
-        yield mock_send_message_stream
 
 
 @pytest.mark.parametrize(
@@ -84,7 +72,7 @@ async def test_error_handling(
             "hello",
             None,
             Context(),
-            agent_id="conversation.google_generative_ai_conversation",
+            agent_id="conversation.google_ai_conversation",
         )
     assert result.response.response_type == intent.IntentResponseType.ERROR, result
     assert result.response.error_code == "unknown", result
@@ -100,10 +88,46 @@ async def test_function_call(
     mock_config_entry_with_assist: MockConfigEntry,
     mock_chat_log: MockChatLog,  # noqa: F811
     mock_send_message_stream: AsyncMock,
+    snapshot: SnapshotAssertion,
 ) -> None:
     """Test function calling."""
-    agent_id = "conversation.google_generative_ai_conversation"
+    agent_id = "conversation.google_ai_conversation"
     context = Context()
+
+    # Add some pre-existing content from conversation.default_agent
+    mock_chat_log.async_add_user_content(UserContent(content="What time is it?"))
+    mock_chat_log.async_add_assistant_content_without_tools(
+        AssistantContent(
+            agent_id=agent_id,
+            tool_calls=[
+                ToolInput(
+                    tool_name="HassGetCurrentTime",
+                    tool_args={},
+                    id="01KGW7TFC1VVVK7ANHVMDA4DJ6",
+                    external=True,
+                )
+            ],
+        )
+    )
+    mock_chat_log.async_add_assistant_content_without_tools(
+        ToolResultContent(
+            agent_id=agent_id,
+            tool_call_id="01KGW7TFC1VVVK7ANHVMDA4DJ6",
+            tool_name="HassGetCurrentTime",
+            tool_result={
+                "speech": {"plain": {"speech": "4:24 PM", "extra_data": None}},
+                "response_type": "action_done",
+                "speech_slots": {"time": datetime.time(16, 24, 17, 813343)},
+                "data": {"success": [], "failed": []},
+            },
+        )
+    )
+    mock_chat_log.async_add_assistant_content_without_tools(
+        AssistantContent(
+            agent_id=agent_id,
+            content="4:24 PM",
+        )
+    )
 
     messages = [
         # Function call stream
@@ -114,8 +138,14 @@ async def test_function_call(
                         "content": {
                             "parts": [
                                 {
+                                    "text": "The user asked me to call a function",
+                                    "thought": True,
+                                    "thought_signature": b"_thought_signature_1",
+                                },
+                                {
                                     "text": "Hi there!",
-                                }
+                                    "thought_signature": b"_thought_signature_2",
+                                },
                             ],
                             "role": "model",
                         }
@@ -138,6 +168,7 @@ async def test_function_call(
                                             "param2": 2.7,
                                         },
                                     },
+                                    "thought_signature": b"_thought_signature_3",
                                 }
                             ],
                             "role": "model",
@@ -156,6 +187,7 @@ async def test_function_call(
                             "parts": [
                                 {
                                     "text": "I've called the ",
+                                    "thought_signature": b"_thought_signature_4",
                                 }
                             ],
                             "role": "model",
@@ -170,6 +202,25 @@ async def test_function_call(
                             "parts": [
                                 {
                                     "text": "test function with the provided parameters.",
+                                    "thought_signature": b"_thought_signature_5",
+                                }
+                            ],
+                            "role": "model",
+                        },
+                        "finish_reason": "STOP",
+                    }
+                ],
+            ),
+        ],
+        # Follow-up response
+        [
+            GenerateContentResponse(
+                candidates=[
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": "You are welcome!",
                                 }
                             ],
                             "role": "model",
@@ -212,15 +263,36 @@ async def test_function_call(
         "function_response": {
             "id": None,
             "name": "test_tool",
+            "parts": None,
             "response": {
                 "result": "Test response",
             },
+            "scheduling": None,
+            "will_continue": None,
         },
         "inline_data": None,
+        "media_resolution": None,
         "text": None,
         "thought": None,
+        "thought_signature": None,
         "video_metadata": None,
     }
+
+    # Test history conversion for multi-turn conversation
+    with patch(
+        "google.genai.chats.AsyncChats.create", return_value=AsyncMock()
+    ) as mock_create:
+        mock_create.return_value.send_message_stream = mock_send_message_stream
+        await conversation.async_converse(
+            hass,
+            "Thank you!",
+            mock_chat_log.conversation_id,
+            context,
+            agent_id=agent_id,
+            device_id="test_device",
+        )
+
+    assert mock_create.call_args[1].get("history") == snapshot
 
 
 @pytest.mark.usefixtures("mock_init_component")
@@ -232,7 +304,7 @@ async def test_google_search_tool_is_sent(
     mock_send_message_stream: AsyncMock,
 ) -> None:
     """Test if the Google Search tool is sent to the model."""
-    agent_id = "conversation.google_generative_ai_conversation"
+    agent_id = "conversation.google_ai_conversation"
     context = Context()
 
     messages = [
@@ -298,7 +370,7 @@ async def test_blocked_response(
     mock_send_message_stream: AsyncMock,
 ) -> None:
     """Test blocked response."""
-    agent_id = "conversation.google_generative_ai_conversation"
+    agent_id = "conversation.google_ai_conversation"
     context = Context()
 
     messages = [
@@ -348,7 +420,7 @@ async def test_empty_response(
 ) -> None:
     """Test empty response."""
 
-    agent_id = "conversation.google_generative_ai_conversation"
+    agent_id = "conversation.google_ai_conversation"
     context = Context()
 
     messages = [
@@ -379,7 +451,7 @@ async def test_empty_response(
     assert result.response.response_type == intent.IntentResponseType.ERROR, result
     assert result.response.error_code == "unknown", result
     assert result.response.as_dict()["speech"]["plain"]["speech"] == (
-        ERROR_GETTING_RESPONSE
+        "Unable to get response"
     )
 
 
@@ -391,7 +463,7 @@ async def test_none_response(
     mock_send_message_stream: AsyncMock,
 ) -> None:
     """Test None response."""
-    agent_id = "conversation.google_generative_ai_conversation"
+    agent_id = "conversation.google_ai_conversation"
     context = Context()
 
     messages = [
@@ -423,10 +495,12 @@ async def test_converse_error(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry
 ) -> None:
     """Test handling ChatLog raising ConverseError."""
+    subentry = next(iter(mock_config_entry.subentries.values()))
     with patch("google.genai.models.AsyncModels.get"):
-        hass.config_entries.async_update_entry(
+        hass.config_entries.async_update_subentry(
             mock_config_entry,
-            options={**mock_config_entry.options, CONF_LLM_HASS_API: "invalid_llm_api"},
+            next(iter(mock_config_entry.subentries.values())),
+            data={**subentry.data, CONF_LLM_HASS_API: "invalid_llm_api"},
         )
         await hass.async_block_till_done()
 
@@ -435,7 +509,7 @@ async def test_converse_error(
         "hello",
         None,
         Context(),
-        agent_id="conversation.google_generative_ai_conversation",
+        agent_id="conversation.google_ai_conversation",
     )
 
     assert result.response.response_type == intent.IntentResponseType.ERROR, result
@@ -613,7 +687,7 @@ async def test_empty_content_in_chat_history(
     mock_send_message_stream: AsyncMock,
 ) -> None:
     """Tests that in case of an empty entry in the chat history the google API will receive an injected space sign instead."""
-    agent_id = "conversation.google_generative_ai_conversation"
+    agent_id = "conversation.google_ai_conversation"
     context = Context()
 
     messages = [
@@ -668,7 +742,7 @@ async def test_history_always_user_first_turn(
 ) -> None:
     """Test that the user is always first in the chat history."""
 
-    agent_id = "conversation.google_generative_ai_conversation"
+    agent_id = "conversation.google_ai_conversation"
     context = Context()
 
     messages = [
@@ -694,7 +768,7 @@ async def test_history_always_user_first_turn(
 
     mock_chat_log.async_add_assistant_content_without_tools(
         conversation.AssistantContent(
-            agent_id="conversation.google_generative_ai_conversation",
+            agent_id="conversation.google_ai_conversation",
             content="Garage door left open, do you want to close it?",
         )
     )
@@ -722,3 +796,72 @@ async def test_history_always_user_first_turn(
         == "Garage door left open, do you want to close it?"
     )
     assert actual_history[1].role == "model"
+
+
+@pytest.mark.usefixtures("mock_init_component")
+async def test_token_stats_reported(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_chat_log: MockChatLog,  # noqa: F811
+    mock_send_message_stream: AsyncMock,
+) -> None:
+    """Test that token stats are reported to the chat log."""
+    trace.async_clear_traces()
+
+    agent_id = "conversation.google_ai_conversation"
+    context = Context()
+
+    messages = [
+        [
+            GenerateContentResponse(
+                candidates=[
+                    {
+                        "content": {
+                            "parts": [{"text": "Hello! "}],
+                            "role": "model",
+                        },
+                    }
+                ],
+            ),
+            GenerateContentResponse(
+                candidates=[
+                    {
+                        "content": {
+                            "parts": [{"text": "How can I help you?"}],
+                            "role": "model",
+                        },
+                        "finish_reason": "STOP",
+                    }
+                ],
+                usage_metadata={
+                    "prompt_token_count": 10,
+                    "candidates_token_count": 20,
+                    "cached_content_token_count": 5,
+                },
+            ),
+        ],
+    ]
+
+    mock_send_message_stream.return_value = messages
+
+    await conversation.async_converse(
+        hass,
+        "Hello",
+        mock_chat_log.conversation_id,
+        context,
+        agent_id=agent_id,
+    )
+
+    traces = trace.async_get_traces()
+    trace_obj = next(iter(traces))
+    events = trace_obj.as_dict().get("events", [])
+    stats = next(
+        e["data"]["stats"]
+        for e in events
+        if e.get("event_type") == "agent_detail" and e.get("data", {}).get("stats")
+    )
+    assert stats == {
+        "input_tokens": 10,
+        "cached_input_tokens": 5,
+        "output_tokens": 20,
+    }

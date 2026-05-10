@@ -1,7 +1,5 @@
 """Support for Cambridge Audio AV Receiver."""
 
-from __future__ import annotations
-
 from datetime import datetime
 from typing import Any
 
@@ -107,7 +105,7 @@ class CambridgeAudioDevice(CambridgeAudioEntity, MediaPlayerEntity):
         """Return the state of the device."""
         media_state = self.client.play_state.state
         if media_state == "NETWORK":
-            return MediaPlayerState.STANDBY
+            return MediaPlayerState.OFF
         if self.client.state.power:
             if media_state == "play":
                 return MediaPlayerState.PLAYING

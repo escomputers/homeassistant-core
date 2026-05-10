@@ -1,7 +1,5 @@
 """Support for Canary sensors."""
 
-from __future__ import annotations
-
 from typing import Final
 
 from canary.model import Device, Location, SensorType
@@ -80,7 +78,7 @@ async def async_setup_entry(
                     if device_type.get("name") in sensor_type[4]
                 )
 
-    async_add_entities(sensors, True)
+    async_add_entities(sensors)
 
 
 class CanarySensor(CoordinatorEntity[CanaryDataUpdateCoordinator], SensorEntity):

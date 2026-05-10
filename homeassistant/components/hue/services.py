@@ -1,14 +1,12 @@
 """Handle Hue Service calls."""
 
-from __future__ import annotations
-
 import asyncio
 import logging
 
 from aiohue import HueBridgeV1, HueBridgeV2
 import voluptuous as vol
 
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.service import verify_domain_control
 
@@ -25,7 +23,8 @@ from .const import (
 LOGGER = logging.getLogger(__name__)
 
 
-def async_register_services(hass: HomeAssistant) -> None:
+@callback
+def async_setup_services(hass: HomeAssistant) -> None:
     """Register services for Hue integration."""
 
     async def hue_activate_scene(call: ServiceCall, skip_reload=True) -> None:
@@ -63,7 +62,7 @@ def async_register_services(hass: HomeAssistant) -> None:
     hass.services.async_register(
         DOMAIN,
         SERVICE_HUE_ACTIVATE_SCENE,
-        verify_domain_control(hass, DOMAIN)(hue_activate_scene),
+        verify_domain_control(DOMAIN)(hue_activate_scene),
         schema=vol.Schema(
             {
                 vol.Required(ATTR_GROUP_NAME): cv.string,

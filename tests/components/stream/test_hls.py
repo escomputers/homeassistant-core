@@ -230,8 +230,8 @@ async def test_stream_timeout(
     playlist_response = await http_client.get(parsed_url.path)
     assert playlist_response.status == HTTPStatus.OK
 
-    # Wait a minute
-    future = dt_util.utcnow() + timedelta(minutes=1)
+    # Wait 40 seconds
+    future = dt_util.utcnow() + timedelta(seconds=40)
     async_fire_time_changed(hass, future)
     await hass.async_block_till_done()
 
@@ -241,8 +241,8 @@ async def test_stream_timeout(
 
     stream_worker_sync.resume()
 
-    # Wait 5 minutes
-    future = dt_util.utcnow() + timedelta(minutes=5)
+    # Wait 2 minutes
+    future = dt_util.utcnow() + timedelta(minutes=2)
     async_fire_time_changed(hass, future)
     await hass.async_block_till_done()
 
@@ -334,10 +334,12 @@ async def test_stream_retries(
         # Request stream. Enable retries which are disabled by default in tests.
         should_retry.return_value = True
         await stream.start()
+        # Capture the thread reference before yielding to the event loop, since
+        # worker_finished() may clear stream._thread once the worker exits.
+        worker_thread = stream._thread
         await open_future1
         await open_future2
-        await hass.async_add_executor_job(stream._thread.join)
-        stream._thread = None
+        await hass.async_add_executor_job(worker_thread.join)
         assert av_open.call_count == 2
         await hass.async_block_till_done()
 

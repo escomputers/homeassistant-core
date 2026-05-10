@@ -1,7 +1,5 @@
 """Support for AVM FRITZ!SmartHome lightbulbs."""
 
-from __future__ import annotations
-
 from typing import Any, cast
 
 from homeassistant.components.light import (
@@ -17,6 +15,9 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .const import COLOR_MODE, LOGGER
 from .coordinator import FritzboxConfigEntry, FritzboxDataUpdateCoordinator
 from .entity import FritzBoxDeviceEntity
+
+# Coordinator handles data updates, so we can allow unlimited parallel updates
+PARALLEL_UPDATES = 0
 
 
 async def async_setup_entry(

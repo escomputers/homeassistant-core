@@ -1,7 +1,5 @@
 """Config flow for AEMET OpenData."""
 
-from __future__ import annotations
-
 from typing import Any
 
 from aemet_opendata.exceptions import AuthError
@@ -71,7 +69,14 @@ class AemetConfigFlow(ConfigFlow, domain=DOMAIN):
             }
         )
 
-        return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
+        return self.async_show_form(
+            step_id="user",
+            data_schema=schema,
+            errors=errors,
+            description_placeholders={
+                "api_key_url": "https://opendata.aemet.es/centrodedescargas/altaUsuario"
+            },
+        )
 
     @staticmethod
     @callback

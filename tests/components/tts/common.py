@@ -1,7 +1,5 @@
 """Provide common tests tools for tts."""
 
-from __future__ import annotations
-
 from collections.abc import Generator
 from http import HTTPStatus
 from pathlib import Path
@@ -285,6 +283,7 @@ class MockResultStream(ResultStream):
             supports_streaming_input=True,
             language="en",
             options={},
+            hass=hass,
             _manager=hass.data[DATA_TTS_MANAGER],
         )
         hass.data[DATA_TTS_MANAGER].token_to_stream[self.token] = self

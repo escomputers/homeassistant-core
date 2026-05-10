@@ -1,7 +1,5 @@
 """Validate integration icon translation files."""
 
-from __future__ import annotations
-
 from typing import Any
 
 import orjson
@@ -11,7 +9,7 @@ from voluptuous.humanize import humanize_error
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.icon import convert_shorthand_service_icon
 
-from .model import Config, Integration
+from .model import Config, Integration, IntegrationType
 from .translations import translation_key_validator
 
 
@@ -120,8 +118,28 @@ CUSTOM_INTEGRATION_SERVICE_ICONS_SCHEMA = cv.schema_with_slug_keys(
 )
 
 
+CONDITION_ICONS_SCHEMA = cv.schema_with_slug_keys(
+    vol.Schema(
+        {
+            vol.Optional("condition"): icon_value_validator,
+        }
+    ),
+    slug_validator=cv.underscore_slug,
+)
+
+
+TRIGGER_ICONS_SCHEMA = cv.schema_with_slug_keys(
+    vol.Schema(
+        {
+            vol.Optional("trigger"): icon_value_validator,
+        }
+    ),
+    slug_validator=cv.underscore_slug,
+)
+
+
 def icon_schema(
-    core_integration: bool, integration_type: str, no_entity_platform: bool
+    core_integration: bool, integration_type: IntegrationType, no_entity_platform: bool
 ) -> vol.Schema:
     """Create an icon schema."""
 
@@ -156,6 +174,7 @@ def icon_schema(
 
     schema = vol.Schema(
         {
+            vol.Optional("conditions"): CONDITION_ICONS_SCHEMA,
             vol.Optional("config"): DATA_ENTRY_ICONS_SCHEMA,
             vol.Optional("issues"): vol.Schema(
                 {str: {"fix_flow": DATA_ENTRY_ICONS_SCHEMA}}
@@ -164,11 +183,16 @@ def icon_schema(
             vol.Optional("services"): CORE_SERVICE_ICONS_SCHEMA
             if core_integration
             else CUSTOM_INTEGRATION_SERVICE_ICONS_SCHEMA,
+            vol.Optional("triggers"): TRIGGER_ICONS_SCHEMA,
         }
     )
 
-    if integration_type in ("entity", "helper", "system"):
-        if integration_type != "entity" or no_entity_platform:
+    if integration_type in (
+        IntegrationType.ENTITY,
+        IntegrationType.HELPER,
+        IntegrationType.SYSTEM,
+    ):
+        if integration_type != IntegrationType.ENTITY or no_entity_platform:
             field = vol.Optional("entity_component")
         else:
             field = vol.Required("entity_component")
@@ -185,7 +209,7 @@ def icon_schema(
                 )
             }
         )
-    if integration_type not in ("entity", "system"):
+    if integration_type not in (IntegrationType.ENTITY, IntegrationType.SYSTEM):
         schema = schema.extend(
             {
                 vol.Optional("entity"): vol.All(

@@ -1,7 +1,5 @@
 """The tests for Select device conditions."""
 
-from __future__ import annotations
-
 import pytest
 from pytest_unordered import unordered
 import voluptuous_serialize
@@ -276,6 +274,7 @@ async def test_get_condition_capabilities(
         {
             "name": "for",
             "optional": True,
+            "required": False,
             "type": "positive_time_period_dict",
         },
     ]
@@ -301,6 +300,7 @@ async def test_get_condition_capabilities(
         {
             "name": "for",
             "optional": True,
+            "required": False,
             "type": "positive_time_period_dict",
         },
     ]
@@ -336,6 +336,7 @@ async def test_get_condition_capabilities_legacy(
         {
             "name": "for",
             "optional": True,
+            "required": False,
             "type": "positive_time_period_dict",
         },
     ]
@@ -361,6 +362,7 @@ async def test_get_condition_capabilities_legacy(
         {
             "name": "for",
             "optional": True,
+            "required": False,
             "type": "positive_time_period_dict",
         },
     ]

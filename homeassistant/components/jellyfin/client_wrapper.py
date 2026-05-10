@@ -1,7 +1,5 @@
 """Utility methods for initializing a Jellyfin client."""
 
-from __future__ import annotations
-
 import socket
 from typing import Any
 
@@ -66,8 +64,7 @@ def _connect_to_address(
 ) -> dict[str, Any]:
     """Connect to the Jellyfin server."""
     result: dict[str, Any] = connection_manager.connect_to_address(url)
-
-    if result["State"] != CONNECTION_STATE["ServerSignIn"]:
+    if CONNECTION_STATE(result["State"]) != CONNECTION_STATE.ServerSignIn:
         raise CannotConnect
 
     return result

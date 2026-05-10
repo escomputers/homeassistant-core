@@ -1,7 +1,5 @@
 """Backup functionality for supervised installations."""
 
-from __future__ import annotations
-
 import asyncio
 from collections.abc import AsyncIterator, Callable, Coroutine, Mapping
 from contextlib import suppress
@@ -44,17 +42,18 @@ from homeassistant.components.backup import (
     IncorrectPasswordError,
     ManagerBackup,
     NewBackup,
+    OnProgressCallback,
     RestoreBackupEvent,
     RestoreBackupStage,
     RestoreBackupState,
     WrittenBackup,
+    async_get_manager as async_get_backup_manager,
     suggested_filename as suggested_backup_filename,
     suggested_filename_from_name_date,
 )
 from homeassistant.const import __version__ as HAVERSION
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.backup import async_get_manager as async_get_backup_manager
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.util import dt as dt_util
 from homeassistant.util.enum import try_parse_enum
@@ -183,6 +182,7 @@ class SupervisorBackupAgent(BackupAgent):
         *,
         open_stream: Callable[[], Coroutine[Any, Any, AsyncIterator[bytes]]],
         backup: AgentBackup,
+        on_progress: OnProgressCallback,
         **kwargs: Any,
     ) -> None:
         """Upload a backup.
@@ -202,8 +202,17 @@ class SupervisorBackupAgent(BackupAgent):
             location={self.location},
             filename=PurePath(suggested_backup_filename(backup)),
         )
+
+        async def stream_with_progress() -> AsyncIterator[bytes]:
+            """Wrap stream to track upload progress."""
+            bytes_uploaded = 0
+            async for chunk in stream:
+                bytes_uploaded += len(chunk)
+                on_progress(bytes_uploaded=bytes_uploaded)
+                yield chunk
+
         await self._client.backups.upload_backup(
-            stream,
+            stream_with_progress(),
             upload_options,
         )
 
@@ -839,7 +848,7 @@ async def backup_addon_before_update(
 
 async def backup_core_before_update(hass: HomeAssistant) -> None:
     """Prepare for updating core."""
-    backup_manager = await async_get_backup_manager(hass)
+    backup_manager = async_get_backup_manager(hass)
     client = get_supervisor_client(hass)
 
     try:

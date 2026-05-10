@@ -1,7 +1,5 @@
 """Support for the Google Cloud TTS service."""
 
-from __future__ import annotations
-
 import logging
 from pathlib import Path
 from typing import Any, cast
@@ -218,7 +216,7 @@ class BaseGoogleCloudProvider:
 
         response = await self._client.synthesize_speech(
             request,
-            timeout=10,
+            timeout=30,
             retry=AsyncRetry(initial=0.1, maximum=2.0, multiplier=2.0),
         )
 

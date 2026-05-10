@@ -1,7 +1,5 @@
 """The Google Photos integration."""
 
-from __future__ import annotations
-
 from aiohttp import ClientError, ClientResponseError
 from google_photos_library_api.api import GooglePhotosLibraryApi
 
@@ -14,7 +12,7 @@ from homeassistant.helpers.typing import ConfigType
 from . import api
 from .const import DOMAIN
 from .coordinator import GooglePhotosConfigEntry, GooglePhotosUpdateCoordinator
-from .services import async_register_services
+from .services import async_setup_services
 
 __all__ = ["DOMAIN"]
 
@@ -24,7 +22,7 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up Google Photos integration."""
 
-    async_register_services(hass)
+    async_setup_services(hass)
 
     return True
 
@@ -33,11 +31,18 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: GooglePhotosConfigEntry
 ) -> bool:
     """Set up Google Photos from a config entry."""
-    implementation = (
-        await config_entry_oauth2_flow.async_get_config_entry_implementation(
-            hass, entry
+    try:
+        implementation = (
+            await config_entry_oauth2_flow.async_get_config_entry_implementation(
+                hass, entry
+            )
         )
-    )
+    except config_entry_oauth2_flow.ImplementationUnavailableError as err:
+        raise ConfigEntryNotReady(
+            translation_domain=DOMAIN,
+            translation_key="oauth2_implementation_unavailable",
+        ) from err
+
     web_session = async_get_clientsession(hass)
     oauth_session = config_entry_oauth2_flow.OAuth2Session(hass, entry, implementation)
     auth = api.AsyncConfigEntryAuth(web_session, oauth_session)

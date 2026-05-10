@@ -1,7 +1,5 @@
 """Config flow for Holiday integration."""
 
-from __future__ import annotations
-
 from typing import Any
 
 from babel import Locale, UnknownLocaleError
@@ -12,7 +10,7 @@ from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
-    OptionsFlow,
+    OptionsFlowWithReload,
 )
 from homeassistant.const import CONF_COUNTRY
 from homeassistant.core import callback
@@ -227,7 +225,7 @@ class HolidayConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
 
-class HolidayOptionsFlowHandler(OptionsFlow):
+class HolidayOptionsFlowHandler(OptionsFlowWithReload):
     """Handle Holiday options."""
 
     async def async_step_init(

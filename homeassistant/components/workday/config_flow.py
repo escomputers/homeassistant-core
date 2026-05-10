@@ -1,7 +1,5 @@
 """Adds config flow for Workday integration."""
 
-from __future__ import annotations
-
 from functools import partial
 from typing import Any
 
@@ -12,7 +10,7 @@ from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
-    OptionsFlow,
+    OptionsFlowWithReload,
 )
 from homeassistant.const import CONF_COUNTRY, CONF_LANGUAGE, CONF_NAME
 from homeassistant.core import callback
@@ -86,6 +84,9 @@ def add_province_and_language_to_schema(
                 SelectOptionDict(value=k, label=", ".join(v))
                 for k, v in subdiv_aliases.items()
             ]
+            for option in province_options:
+                if option["label"] == "":
+                    option["label"] = option["value"]
         else:
             province_options = provinces
         province_schema = {
@@ -152,6 +153,7 @@ def validate_custom_dates(user_input: dict[str, Any]) -> None:
             subdiv=province,
             years=year,
             language=language,
+            categories=[PUBLIC, *user_input.get(CONF_CATEGORY, [])],
         )
 
     else:
@@ -311,7 +313,7 @@ class WorkdayConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
 
-class WorkdayOptionsFlowHandler(OptionsFlow):
+class WorkdayOptionsFlowHandler(OptionsFlowWithReload):
     """Handle Workday options."""
 
     async def async_step_init(

@@ -1,7 +1,5 @@
 """Config flow for Enphase Envoy integration."""
 
-from __future__ import annotations
-
 from collections.abc import Mapping
 import logging
 from typing import TYPE_CHECKING, Any
@@ -14,7 +12,7 @@ from homeassistant.config_entries import (
     SOURCE_REAUTH,
     ConfigFlow,
     ConfigFlowResult,
-    OptionsFlow,
+    OptionsFlowWithReload,
 )
 from homeassistant.const import (
     CONF_HOST,
@@ -24,7 +22,7 @@ from homeassistant.const import (
     CONF_USERNAME,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.httpx_client import get_async_client
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from homeassistant.helpers.typing import VolDictType
 
@@ -63,7 +61,7 @@ async def validate_input(
     description_placeholders: dict[str, str],
 ) -> Envoy:
     """Validate the user input allows us to connect."""
-    envoy = Envoy(host, get_async_client(hass, verify_ssl=False))
+    envoy = Envoy(host, async_get_clientsession(hass, verify_ssl=False))
     try:
         await envoy.setup()
         await envoy.authenticate(username=username, password=password)
@@ -335,7 +333,7 @@ class EnphaseConfigFlow(ConfigFlow, domain=DOMAIN):
         )
 
 
-class EnvoyOptionsFlowHandler(OptionsFlow):
+class EnvoyOptionsFlowHandler(OptionsFlowWithReload):
     """Envoy config flow options handler."""
 
     async def async_step_init(

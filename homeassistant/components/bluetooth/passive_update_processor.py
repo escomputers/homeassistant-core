@@ -1,7 +1,5 @@
 """Passive update processors for the Bluetooth integration."""
 
-from __future__ import annotations
-
 import dataclasses
 from datetime import timedelta
 from functools import cache
@@ -99,6 +97,12 @@ def deserialize_entity_description(
         descriptions_class = descriptions_class._dataclass  # noqa: SLF001
     for field in cached_fields(descriptions_class):
         field_name = field.name
+        # Only set fields that are in the data
+        # otherwise we would override default values with None
+        # causing side effects
+        if field_name not in data:
+            continue
+
         # It would be nice if field.type returned the actual
         # type instead of a str so we could avoid writing this
         # out, but it doesn't. If we end up using this in more

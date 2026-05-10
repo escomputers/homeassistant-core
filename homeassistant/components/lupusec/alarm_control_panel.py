@@ -1,7 +1,5 @@
 """Support for Lupusec System alarm control panels."""
 
-from __future__ import annotations
-
 from datetime import timedelta
 
 import lupupy
@@ -11,12 +9,12 @@ from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelEntityFeature,
     AlarmControlPanelState,
 )
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from . import DOMAIN
+from . import LupusecConfigEntry
+from .const import DOMAIN
 from .entity import LupusecDevice
 
 SCAN_INTERVAL = timedelta(seconds=2)
@@ -24,11 +22,11 @@ SCAN_INTERVAL = timedelta(seconds=2)
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    config_entry: LupusecConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up an alarm control panel for a Lupusec device."""
-    data = hass.data[DOMAIN][config_entry.entry_id]
+    data = config_entry.runtime_data
 
     alarm = await hass.async_add_executor_job(data.get_alarm)
 

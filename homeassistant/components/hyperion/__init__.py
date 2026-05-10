@@ -1,6 +1,4 @@
-"""The Hyperion component."""
-
-from __future__ import annotations
+"""The Hyperion integration."""
 
 import asyncio
 from collections.abc import Callable
@@ -266,14 +264,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: HyperionConfigEntry) -> 
     assert hyperion_client
     if hyperion_client.instances is not None:
         await async_instances_to_clients_raw(hyperion_client.instances)
-    entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
 
     return True
-
-
-async def _async_entry_updated(hass: HomeAssistant, entry: HyperionConfigEntry) -> None:
-    """Handle entry updates."""
-    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: HyperionConfigEntry) -> bool:

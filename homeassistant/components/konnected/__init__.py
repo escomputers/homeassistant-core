@@ -1,4 +1,5 @@
 """Support for Konnected devices."""
+# pylint: disable=hass-use-runtime-data  # Uses legacy hass.data[DOMAIN] pattern
 
 import copy
 import hmac
@@ -35,7 +36,7 @@ from homeassistant.const import (
     Platform,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import config_validation as cv, issue_registry as ir
 from homeassistant.helpers.typing import ConfigType
 
 from .config_flow import (  # Loading the config flow file will register the flow
@@ -58,7 +59,6 @@ from .const import (
     PIN_TO_ZONE,
     STATE_HIGH,
     STATE_LOW,
-    UNDO_UPDATE_LISTENER,
     UPDATE_ENDPOINT,
     ZONE_TO_PIN,
     ZONES,
@@ -222,6 +222,19 @@ PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR, Platform.SWITCH]
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Konnected platform."""
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        "deprecated_firmware",
+        breaks_in_ha_version="2026.4.0",
+        is_fixable=False,
+        issue_domain=DOMAIN,
+        severity=ir.IssueSeverity.WARNING,
+        translation_key="deprecated_firmware",
+        translation_placeholders={
+            "kb_page_url": "https://support.konnected.io/migrating-from-konnected-legacy-home-assistant-integration-to-esphome",
+        },
+    )
     if (cfg := config.get(DOMAIN)) is None:
         cfg = {}
 
@@ -261,10 +274,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # config entry specific data to enable unload
-    hass.data[DOMAIN][entry.entry_id] = {
-        UNDO_UPDATE_LISTENER: entry.add_update_listener(async_entry_updated)
-    }
+    entry.async_on_unload(entry.add_update_listener(async_entry_updated))
     return True
 
 
@@ -272,11 +282,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
-    hass.data[DOMAIN][entry.entry_id][UNDO_UPDATE_LISTENER]()
-
     if unload_ok:
         hass.data[DOMAIN][CONF_DEVICES].pop(entry.data[CONF_ID])
-        hass.data[DOMAIN].pop(entry.entry_id)
 
     return unload_ok
 

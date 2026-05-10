@@ -1,7 +1,5 @@
 """Support for Bosch Alarm Panel."""
 
-from __future__ import annotations
-
 from bosch_alarm_mode2 import Panel
 
 from homeassistant.components.alarm_control_panel import (
@@ -50,7 +48,7 @@ class AreaAlarmControlPanel(BoschAlarmAreaEntity, AlarmControlPanelEntity):
 
     def __init__(self, panel: Panel, area_id: int, unique_id: str) -> None:
         """Initialise a Bosch Alarm control panel entity."""
-        super().__init__(panel, area_id, unique_id, False, False, True)
+        super().__init__(panel, area_id, unique_id, True, False, True)
         self._attr_unique_id = self._area_unique_id
 
     @property

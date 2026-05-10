@@ -33,7 +33,7 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up fritzboxtools integration."""
-    await async_setup_services(hass)
+    async_setup_services(hass)
     return True
 
 
@@ -75,8 +75,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: FritzConfigEntry) -> boo
     if FRITZ_DATA_KEY not in hass.data:
         hass.data[FRITZ_DATA_KEY] = FritzData()
 
-    entry.async_on_unload(entry.add_update_listener(update_listener))
-
     # Load the other platforms like switch
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
@@ -88,15 +86,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: FritzConfigEntry) -> bo
     avm_wrapper = entry.runtime_data
 
     fritz_data = hass.data[FRITZ_DATA_KEY]
-    fritz_data.tracked.pop(avm_wrapper.unique_id)
+
+    if avm_wrapper.unique_id in fritz_data.tracked:
+        fritz_data.tracked.pop(avm_wrapper.unique_id)
 
     if not bool(fritz_data.tracked):
         hass.data.pop(FRITZ_DATA_KEY)
 
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-
-
-async def update_listener(hass: HomeAssistant, entry: FritzConfigEntry) -> None:
-    """Update when config_entry options update."""
-    if entry.options:
-        await hass.config_entries.async_reload(entry.entry_id)

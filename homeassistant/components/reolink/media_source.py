@@ -1,7 +1,5 @@
 """Expose Reolink IP camera VODs as media sources."""
 
-from __future__ import annotations
-
 import datetime as dt
 import logging
 
@@ -42,9 +40,9 @@ def res_name(stream: str) -> str:
         case "main":
             return "High res."
         case "autotrack_sub":
-            return "Autotrack low res."
+            return "Telephoto low res."
         case "autotrack_main":
-            return "Autotrack high res."
+            return "Telephoto high res."
         case _:
             return "Low res."
 
@@ -284,7 +282,7 @@ class ReolinkVODMediaSource(MediaSource):
                         identifier=f"RES|{config_entry_id}|{channel}|autotrack_sub",
                         media_class=MediaClass.CHANNEL,
                         media_content_type=MediaType.PLAYLIST,
-                        title="Autotrack low resolution",
+                        title="Telephoto low resolution",
                         can_play=False,
                         can_expand=True,
                     ),
@@ -293,7 +291,7 @@ class ReolinkVODMediaSource(MediaSource):
                         identifier=f"RES|{config_entry_id}|{channel}|autotrack_main",
                         media_class=MediaClass.CHANNEL,
                         media_content_type=MediaType.PLAYLIST,
-                        title="Autotrack high resolution",
+                        title="Telephoto high resolution",
                         can_play=False,
                         can_expand=True,
                     ),
@@ -422,9 +420,7 @@ class ReolinkVODMediaSource(MediaSource):
             file_name = f"{file.start_time.time()} {file.duration}"
             if file.triggers != file.triggers.NONE:
                 file_name += " " + " ".join(
-                    str(trigger.name).title()
-                    for trigger in file.triggers
-                    if trigger != trigger.NONE
+                    str(trigger.name).title() for trigger in file.triggers
                 )
 
             children.append(

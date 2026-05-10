@@ -1,7 +1,5 @@
 """Config flow for Samsung TV."""
 
-from __future__ import annotations
-
 from collections.abc import Mapping
 from functools import partial
 import socket
@@ -13,6 +11,7 @@ from samsungtvws.encrypted.authenticator import SamsungTVEncryptedWSAsyncAuthent
 import voluptuous as vol
 
 from homeassistant.config_entries import (
+    SOURCE_RECONFIGURE,
     ConfigEntry,
     ConfigEntryState,
     ConfigFlow,
@@ -124,6 +123,7 @@ class SamsungTVConfigFlow(ConfigFlow, domain=DOMAIN):
         self._model: str | None = None
         self._connect_result: str | None = None
         self._method: str | None = None
+        self._port: int | None = None
         self._name: str | None = None
         self._title: str = ""
         self._id: int | None = None
@@ -199,33 +199,37 @@ class SamsungTVConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def _async_create_bridge(self) -> None:
         """Create the bridge."""
-        result, method, _info = await self._async_get_device_info_and_method()
+        result = await self._async_load_device_info()
         if result not in SUCCESSFUL_RESULTS:
             LOGGER.debug("No working config found for %s", self._host)
             raise AbortFlow(result)
-        assert method is not None
-        self._bridge = SamsungTVBridge.get_bridge(self.hass, method, self._host)
+        assert self._method is not None
+        self._bridge = SamsungTVBridge.get_bridge(
+            self.hass, self._method, self._host, self._port
+        )
 
-    async def _async_get_device_info_and_method(
+    async def _async_load_device_info(
         self,
-    ) -> tuple[str, str | None, dict[str, Any] | None]:
+    ) -> str:
         """Get device info and method only once."""
         if self._connect_result is None:
-            result, _, method, info = await async_get_device_info(self.hass, self._host)
+            result, port, method, info = await async_get_device_info(
+                self.hass, self._host
+            )
             self._connect_result = result
             self._method = method
+            self._port = port
             self._device_info = info
             if not method:
                 LOGGER.debug("Host:%s did not return device info", self._host)
-                return result, None, None
-        return self._connect_result, self._method, self._device_info
+        return self._connect_result
 
     async def _async_get_and_check_device_info(self) -> bool:
         """Try to get the device info."""
-        result, _method, info = await self._async_get_device_info_and_method()
+        result = await self._async_load_device_info()
         if result not in SUCCESSFUL_RESULTS:
             raise AbortFlow(result)
-        if not info:
+        if not (info := self._device_info):
             return False
         dev_info = info.get("device", {})
         assert dev_info is not None
@@ -281,6 +285,32 @@ class SamsungTVConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user",
             data_schema=self.add_suggested_values_to_schema(DATA_SCHEMA, user_input),
+            errors=errors,
+        )
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle reconfiguration of the config entry."""
+        reconfigure_entry = self._get_reconfigure_entry()
+
+        errors: dict[str, str] | None = None
+        if user_input is not None:
+            if await self._async_set_name_host_from_input(user_input):
+                self._async_abort_entries_match({CONF_HOST: self._host})
+                return self.async_update_reload_and_abort(
+                    reconfigure_entry,
+                    data_updates={CONF_HOST: self._host},
+                )
+            errors = {"base": "invalid_host"}
+
+        suggested_values = user_input or {CONF_HOST: reconfigure_entry.data[CONF_HOST]}
+        return self.async_show_form(
+            step_id=SOURCE_RECONFIGURE,
+            data_schema=self.add_suggested_values_to_schema(
+                DATA_SCHEMA,
+                suggested_values,
+            ),
             errors=errors,
         )
 
@@ -436,7 +466,7 @@ class SamsungTVConfigFlow(ConfigFlow, domain=DOMAIN):
 
     def is_matching(self, other_flow: Self) -> bool:
         """Return True if other_flow is matching this flow."""
-        return other_flow._host == self._host  # noqa: SLF001
+        return getattr(other_flow, "_host", None) == self._host
 
     @callback
     def _abort_if_manufacturer_is_not_samsung(self) -> None:

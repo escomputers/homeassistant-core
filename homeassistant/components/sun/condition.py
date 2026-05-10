@@ -1,47 +1,40 @@
 """Offer sun based automation rules."""
 
-from __future__ import annotations
-
 from datetime import datetime, timedelta
-from typing import cast
+from typing import Any, Unpack, cast
 
 import voluptuous as vol
 
-from homeassistant.const import CONF_CONDITION, SUN_EVENT_SUNRISE, SUN_EVENT_SUNSET
+from homeassistant.const import CONF_OPTIONS, SUN_EVENT_SUNRISE, SUN_EVENT_SUNSET
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.automation import move_top_level_schema_fields_to_options
 from homeassistant.helpers.condition import (
-    ConditionCheckerType,
+    Condition,
+    ConditionCheckParams,
+    ConditionConfig,
     condition_trace_set_result,
     condition_trace_update_result,
-    trace_condition_function,
 )
 from homeassistant.helpers.sun import get_astral_event_date
-from homeassistant.helpers.typing import ConfigType, TemplateVarsType
+from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
 
-_CONDITION_SCHEMA = vol.All(
-    vol.Schema(
-        {
-            **cv.CONDITION_BASE_SCHEMA,
-            vol.Required(CONF_CONDITION): "sun",
-            vol.Optional("before"): cv.sun_event,
-            vol.Optional("before_offset"): cv.time_period,
-            vol.Optional("after"): vol.All(
-                vol.Lower, vol.Any(SUN_EVENT_SUNSET, SUN_EVENT_SUNRISE)
-            ),
-            vol.Optional("after_offset"): cv.time_period,
-        }
-    ),
-    cv.has_at_least_one_key("before", "after"),
+_OPTIONS_SCHEMA_DICT: dict[vol.Marker, Any] = {
+    vol.Optional("before"): cv.sun_event,
+    vol.Optional("before_offset"): cv.time_period,
+    vol.Optional("after"): cv.sun_event,
+    vol.Optional("after_offset"): cv.time_period,
+}
+
+_CONDITION_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_OPTIONS): vol.All(
+            _OPTIONS_SCHEMA_DICT,
+            cv.has_at_least_one_key("before", "after"),
+        )
+    }
 )
-
-
-async def async_validate_condition_config(
-    hass: HomeAssistant, config: ConfigType
-) -> ConfigType:
-    """Validate config."""
-    return _CONDITION_SCHEMA(config)  # type: ignore[no-any-return]
 
 
 def sun(
@@ -128,16 +121,54 @@ def sun(
     return True
 
 
-def async_condition_from_config(config: ConfigType) -> ConditionCheckerType:
-    """Wrap action method with sun based condition."""
-    before = config.get("before")
-    after = config.get("after")
-    before_offset = config.get("before_offset")
-    after_offset = config.get("after_offset")
+class SunCondition(Condition):
+    """Sun condition."""
 
-    @trace_condition_function
-    def sun_if(hass: HomeAssistant, variables: TemplateVarsType = None) -> bool:
-        """Validate time based if-condition."""
-        return sun(hass, before, after, before_offset, after_offset)
+    _options: dict[str, Any]
 
-    return sun_if
+    @classmethod
+    async def async_validate_complete_config(
+        cls, hass: HomeAssistant, complete_config: ConfigType
+    ) -> ConfigType:
+        """Validate complete config."""
+        complete_config = move_top_level_schema_fields_to_options(
+            complete_config, _OPTIONS_SCHEMA_DICT
+        )
+        return await super().async_validate_complete_config(hass, complete_config)
+
+    @classmethod
+    async def async_validate_config(
+        cls, hass: HomeAssistant, config: ConfigType
+    ) -> ConfigType:
+        """Validate config."""
+        return cast(ConfigType, _CONDITION_SCHEMA(config))
+
+    def __init__(self, hass: HomeAssistant, config: ConditionConfig) -> None:
+        """Initialize condition."""
+        super().__init__(hass, config)
+        assert config.options is not None
+        self._options = config.options
+        self._before = self._options.get("before")
+        self._after = self._options.get("after")
+        self._before_offset = self._options.get("before_offset")
+        self._after_offset = self._options.get("after_offset")
+
+    def _async_check(self, **kwargs: Unpack[ConditionCheckParams]) -> bool:
+        """Check the condition."""
+        return sun(
+            self._hass,
+            self._before,
+            self._after,
+            self._before_offset,
+            self._after_offset,
+        )
+
+
+CONDITIONS: dict[str, type[Condition]] = {
+    "_": SunCondition,
+}
+
+
+async def async_get_conditions(hass: HomeAssistant) -> dict[str, type[Condition]]:
+    """Return the sun conditions."""
+    return CONDITIONS

@@ -1,6 +1,4 @@
-"""The dnsip component."""
-
-from __future__ import annotations
+"""The DNS IP integration."""
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PORT
@@ -13,17 +11,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up DNS IP from a config entry."""
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    entry.async_on_unload(entry.add_update_listener(update_listener))
     return True
 
 
-async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Handle options update."""
-    await hass.config_entries.async_reload(entry.entry_id)
-
-
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload dnsip config entry."""
+    """Unload DNS IP config entry."""
 
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
@@ -36,12 +28,10 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
         return False
 
     if config_entry.version < 2 and config_entry.minor_version < 2:
-        version = config_entry.version
-        minor_version = config_entry.minor_version
         _LOGGER.debug(
             "Migrating configuration from version %s.%s",
-            version,
-            minor_version,
+            config_entry.version,
+            config_entry.minor_version,
         )
 
         new_options = {**config_entry.options}
@@ -52,10 +42,19 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
             config_entry, options=new_options, minor_version=2
         )
 
+        _LOGGER.debug("Migration to configuration version %s.%s successful", 1, 2)
+
+    if config_entry.version < 2 and config_entry.minor_version < 3:
         _LOGGER.debug(
-            "Migration to configuration version %s.%s successful",
-            1,
-            2,
+            "Migrating configuration from version %s.%s",
+            config_entry.version,
+            config_entry.minor_version,
         )
+
+        hass.config_entries.async_update_entry(
+            config_entry, unique_id=None, minor_version=3
+        )
+
+        _LOGGER.debug("Migration to configuration version %s.%s successful", 1, 3)
 
     return True

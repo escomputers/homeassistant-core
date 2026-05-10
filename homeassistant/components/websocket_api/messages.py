@@ -1,7 +1,5 @@
 """Message templates for websocket commands."""
 
-from __future__ import annotations
-
 from functools import lru_cache
 import logging
 from typing import Any, Final
@@ -107,6 +105,19 @@ def error_message(
 def event_message(iden: int, event: Any) -> dict[str, Any]:
     """Return an event message."""
     return {"id": iden, "type": "event", "event": event}
+
+
+def construct_event_message(iden: int, event: bytes) -> bytes:
+    """Construct an event message JSON."""
+    return b"".join(
+        (
+            b'{"id":',
+            str(iden).encode(),
+            b',"type":"event","event":',
+            event,
+            b"}",
+        )
+    )
 
 
 def cached_event_message(message_id_as_bytes: bytes, event: Event) -> bytes:
@@ -242,7 +253,7 @@ def _message_to_json_bytes_or_none(message: dict[str, Any]) -> bytes | None:
     """Serialize a websocket message to json or return None."""
     try:
         return json_bytes(message)
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         _LOGGER.error(
             "Unable to serialize to JSON. Bad data found at %s",
             format_unserializable_data(

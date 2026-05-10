@@ -1,7 +1,5 @@
 """Config flow to configure the FRITZ!Box Tools integration."""
 
-from __future__ import annotations
-
 from collections.abc import Mapping
 import ipaddress
 import logging
@@ -17,7 +15,11 @@ from homeassistant.components.device_tracker import (
     CONF_CONSIDER_HOME,
     DEFAULT_CONSIDER_HOME,
 )
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
+from homeassistant.config_entries import (
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlowWithReload,
+)
 from homeassistant.const import (
     CONF_HOST,
     CONF_PASSWORD,
@@ -194,7 +196,7 @@ class FritzBoxToolsFlowHandler(ConfigFlow, domain=DOMAIN):
 
     def is_matching(self, other_flow: Self) -> bool:
         """Return True if other_flow is matching this flow."""
-        return other_flow._host == self._host  # noqa: SLF001
+        return other_flow._host == self._host
 
     async def async_step_confirm(
         self, user_input: dict[str, Any] | None = None
@@ -279,6 +281,7 @@ class FritzBoxToolsFlowHandler(ConfigFlow, domain=DOMAIN):
         self._username = user_input[CONF_USERNAME]
         self._password = user_input[CONF_PASSWORD]
         self._use_tls = user_input[CONF_SSL]
+        self._feature_device_discovery = user_input[CONF_FEATURE_DEVICE_TRACKING]
 
         self._port = self._determine_port(user_input)
 
@@ -409,7 +412,7 @@ class FritzBoxToolsFlowHandler(ConfigFlow, domain=DOMAIN):
         )
 
 
-class FritzBoxToolsOptionsFlowHandler(OptionsFlow):
+class FritzBoxToolsOptionsFlowHandler(OptionsFlowWithReload):
     """Handle an options flow."""
 
     async def async_step_init(

@@ -1,7 +1,5 @@
 """Allow users to set and activate scenes."""
 
-from __future__ import annotations
-
 from collections.abc import Mapping, ValuesView
 import logging
 from typing import Any, NamedTuple, cast
@@ -272,7 +270,7 @@ async def async_setup_platform(
 
     async def delete_service(call: ServiceCall) -> None:
         """Delete a dynamically created scene."""
-        entity_ids = await async_extract_entity_ids(hass, call)
+        entity_ids = await async_extract_entity_ids(call)
 
         for entity_id in entity_ids:
             scene = platform.entities.get(entity_id)

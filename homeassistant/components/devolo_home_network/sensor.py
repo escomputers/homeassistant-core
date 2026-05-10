@@ -1,7 +1,5 @@
 """Platform for sensor integration."""
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -47,7 +45,11 @@ def _last_restart(runtime: int) -> datetime:
 
 
 type _CoordinatorDataType = (
-    LogicalNetwork | DataRate | list[ConnectedStationInfo] | list[NeighborAPInfo] | int
+    LogicalNetwork
+    | DataRate
+    | dict[str, ConnectedStationInfo]
+    | list[NeighborAPInfo]
+    | int
 )
 type _SensorDataType = int | float | datetime
 
@@ -79,7 +81,7 @@ SENSOR_TYPES: dict[str, DevoloSensorEntityDescription[Any, Any]] = {
         ),
     ),
     CONNECTED_WIFI_CLIENTS: DevoloSensorEntityDescription[
-        list[ConnectedStationInfo], int
+        dict[str, ConnectedStationInfo], int
     ](
         key=CONNECTED_WIFI_CLIENTS,
         state_class=SensorStateClass.MEASUREMENT,
@@ -113,7 +115,7 @@ SENSOR_TYPES: dict[str, DevoloSensorEntityDescription[Any, Any]] = {
         key=LAST_RESTART,
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
-        device_class=SensorDeviceClass.TIMESTAMP,
+        device_class=SensorDeviceClass.UPTIME,
         value_func=_last_restart,
     ),
 }

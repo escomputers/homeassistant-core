@@ -1,6 +1,5 @@
 """Assist satellite entity for VoIP integration."""
-
-from __future__ import annotations
+# pylint: disable=hass-use-runtime-data  # Uses legacy hass.data[DOMAIN] pattern
 
 import asyncio
 from datetime import timedelta
@@ -118,6 +117,8 @@ class VoipAssistSatellite(VoIPEntity, AssistSatelliteEntity, RtpDatagramProtocol
         VoIPEntity.__init__(self, voip_device)
         AssistSatelliteEntity.__init__(self)
         RtpDatagramProtocol.__init__(self)
+
+        _LOGGER.debug("Assist satellite with device: %s", voip_device)
 
         self.config_entry = config_entry
 
@@ -254,7 +255,7 @@ class VoipAssistSatellite(VoIPEntity, AssistSatelliteEntity, RtpDatagramProtocol
         )
 
         try:
-            # VoIP ID is SIP header
+            # VoIP ID is SIP header - This represents what is set as the To header
             destination_endpoint = SipEndpoint(self.voip_device.voip_id)
         except ValueError:
             # VoIP ID is IP address
@@ -269,10 +270,12 @@ class VoipAssistSatellite(VoIPEntity, AssistSatelliteEntity, RtpDatagramProtocol
 
         # Make the call
         sip_protocol: SipDatagramProtocol = self.hass.data[DOMAIN].protocol
+        _LOGGER.debug("Outgoing call to contact %s", self.voip_device.contact)
         call_info = sip_protocol.outgoing_call(
             source=source_endpoint,
             destination=destination_endpoint,
             rtp_port=self._rtp_port,
+            contact=self.voip_device.contact,
         )
 
         # Check if caller didn't pick up
@@ -336,7 +339,8 @@ class VoipAssistSatellite(VoIPEntity, AssistSatelliteEntity, RtpDatagramProtocol
                     if self._run_pipeline_task is not None:
                         _LOGGER.debug("Cancelling running pipeline")
                         self._run_pipeline_task.cancel()
-                    self._call_end_future.set_result(None)
+                    if not self._call_end_future.done():
+                        self._call_end_future.set_result(None)
                     self.disconnect()
                     break
 
@@ -363,6 +367,7 @@ class VoipAssistSatellite(VoIPEntity, AssistSatelliteEntity, RtpDatagramProtocol
         if self._check_hangup_task is not None:
             self._check_hangup_task.cancel()
             self._check_hangup_task = None
+        self._rtp_port = None
 
     def connection_made(self, transport):
         """Server is ready."""
@@ -486,6 +491,7 @@ class VoipAssistSatellite(VoIPEntity, AssistSatelliteEntity, RtpDatagramProtocol
                 await asyncio.sleep(_ANNOUNCEMENT_AFTER_DELAY)
         except Exception:
             _LOGGER.exception("Unexpected error while playing announcement")
+            self._announcement = None
             raise
         finally:
             self._run_pipeline_task = None

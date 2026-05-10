@@ -1,7 +1,5 @@
 """Allows to configure custom shell commands to turn a value for a sensor."""
 
-from __future__ import annotations
-
 import asyncio
 from collections.abc import Mapping
 from datetime import datetime, timedelta
@@ -10,8 +8,7 @@ from typing import Any
 
 from jsonpath import jsonpath
 
-from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.components.sensor.helpers import async_parse_date_datetime
+from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
 from homeassistant.const import (
     CONF_COMMAND,
     CONF_NAME,
@@ -19,7 +16,6 @@ from homeassistant.const import (
     CONF_VALUE_TEMPLATE,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import TemplateError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.template import Template
@@ -37,7 +33,11 @@ from .const import (
     LOGGER,
     TRIGGER_ENTITY_OPTIONS,
 )
-from .utils import async_check_output_or_log
+from .utils import (
+    async_check_output_or_log,
+    create_platform_yaml_not_supported_issue,
+    render_template_args,
+)
 
 DEFAULT_NAME = "Command Sensor"
 
@@ -52,6 +52,7 @@ async def async_setup_platform(
 ) -> None:
     """Set up the Command Sensor."""
     if not discovery_info:
+        create_platform_yaml_not_supported_issue(hass, SENSOR_DOMAIN)
         return
 
     sensor_config = discovery_info
@@ -189,16 +190,7 @@ class CommandSensor(ManualTriggerSensorEntity):
                 self.entity_id, variables, None
             )
 
-        if self.device_class not in {
-            SensorDeviceClass.DATE,
-            SensorDeviceClass.TIMESTAMP,
-        }:
-            self._attr_native_value = value
-        elif value is not None:
-            self._attr_native_value = async_parse_date_datetime(
-                value, self.entity_id, self.device_class
-            )
-
+        self._set_native_value_with_possible_timestamp(value)
         self._process_manual_data(variables)
         self.async_write_ha_state()
 
@@ -222,32 +214,6 @@ class CommandSensorData:
 
     async def async_update(self) -> None:
         """Get the latest data with a shell command."""
-        command = self.command
-
-        if " " not in command:
-            prog = command
-            args = None
-            args_compiled = None
-        else:
-            prog, args = command.split(" ", 1)
-            args_compiled = Template(args, self.hass)
-
-        if args_compiled:
-            try:
-                args_to_render = {"arguments": args}
-                rendered_args = args_compiled.async_render(args_to_render)
-            except TemplateError as ex:
-                LOGGER.exception("Error rendering command template: %s", ex)
-                return
-        else:
-            rendered_args = None
-
-        if rendered_args == args:
-            # No template used. default behavior
-            pass
-        else:
-            # Template used. Construct the string used in the shell
-            command = f"{prog} {rendered_args}"
-
-        LOGGER.debug("Running command: %s", command)
+        if not (command := render_template_args(self.hass, self.command)):
+            return
         self.value = await async_check_output_or_log(command, self.timeout)

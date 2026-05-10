@@ -1,7 +1,5 @@
 """Update helpers for Supervisor."""
 
-from __future__ import annotations
-
 from aiohasupervisor import SupervisorError
 from aiohasupervisor.models import (
     HomeAssistantUpdateOptions,
@@ -29,8 +27,7 @@ async def update_addon(
     client = get_supervisor_client(hass)
 
     if backup:
-        # pylint: disable-next=import-outside-toplevel
-        from .backup import backup_addon_before_update
+        from .backup import backup_addon_before_update  # noqa: PLC0415
 
         await backup_addon_before_update(hass, addon, addon_name, installed_version)
 
@@ -50,8 +47,7 @@ async def update_core(hass: HomeAssistant, version: str | None, backup: bool) ->
     client = get_supervisor_client(hass)
 
     if backup:
-        # pylint: disable-next=import-outside-toplevel
-        from .backup import backup_core_before_update
+        from .backup import backup_core_before_update  # noqa: PLC0415
 
         await backup_core_before_update(hass)
 
@@ -71,8 +67,7 @@ async def update_os(hass: HomeAssistant, version: str | None, backup: bool) -> N
     client = get_supervisor_client(hass)
 
     if backup:
-        # pylint: disable-next=import-outside-toplevel
-        from .backup import backup_core_before_update
+        from .backup import backup_core_before_update  # noqa: PLC0415
 
         await backup_core_before_update(hass)
 

@@ -1,7 +1,5 @@
 """Reolink Integration views."""
 
-from __future__ import annotations
-
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from http import HTTPStatus
 import logging
@@ -79,7 +77,7 @@ class PlaybackProxyView(HomeAssistantView):
             return web.Response(body=err_str, status=HTTPStatus.BAD_REQUEST)
 
         try:
-            mime_type, reolink_url = await host.api.get_vod_source(
+            _mime_type, reolink_url = await host.api.get_vod_source(
                 ch, filename_decoded, stream_res, VodRequestType(vod_type)
             )
         except ReolinkError as err:

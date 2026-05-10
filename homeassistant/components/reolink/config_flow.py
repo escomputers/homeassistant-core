@@ -1,7 +1,5 @@
 """Config flow for the Reolink camera component."""
 
-from __future__ import annotations
-
 import asyncio
 from collections.abc import Mapping
 import logging
@@ -23,7 +21,7 @@ from homeassistant.config_entries import (
     SOURCE_RECONFIGURE,
     ConfigFlow,
     ConfigFlowResult,
-    OptionsFlow,
+    OptionsFlowWithReload,
 )
 from homeassistant.const import (
     CONF_HOST,
@@ -38,7 +36,13 @@ from homeassistant.helpers import config_validation as cv, selector
 from homeassistant.helpers.device_registry import format_mac
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 
-from .const import CONF_BC_PORT, CONF_SUPPORTS_PRIVACY_MODE, CONF_USE_HTTPS, DOMAIN
+from .const import (
+    CONF_BC_ONLY,
+    CONF_BC_PORT,
+    CONF_SUPPORTS_PRIVACY_MODE,
+    CONF_USE_HTTPS,
+    DOMAIN,
+)
 from .exceptions import (
     PasswordIncompatible,
     ReolinkException,
@@ -55,7 +59,7 @@ DEFAULT_OPTIONS = {CONF_PROTOCOL: DEFAULT_PROTOCOL}
 API_STARTUP_TIME = 5
 
 
-class ReolinkOptionsFlowHandler(OptionsFlow):
+class ReolinkOptionsFlowHandler(OptionsFlowWithReload):
     """Handle Reolink options."""
 
     async def async_step_init(
@@ -153,6 +157,15 @@ class ReolinkFlowHandler(ConfigFlow, domain=DOMAIN):
         """Handle discovery via dhcp."""
         mac_address = format_mac(discovery_info.macaddress)
         existing_entry = await self.async_set_unique_id(mac_address)
+        if existing_entry and CONF_HOST not in existing_entry.data:
+            _LOGGER.debug(
+                "Reolink DHCP discovered device with MAC '%s' and IP '%s', "
+                "but existing config entry does not have host, ignoring",
+                mac_address,
+                discovery_info.ip,
+            )
+            raise AbortFlow("already_configured")
+
         if (
             existing_entry
             and CONF_PASSWORD in existing_entry.data
@@ -296,6 +309,7 @@ class ReolinkFlowHandler(ConfigFlow, domain=DOMAIN):
                 user_input[CONF_PORT] = host.api.port
                 user_input[CONF_USE_HTTPS] = host.api.use_https
                 user_input[CONF_BC_PORT] = host.api.baichuan.port
+                user_input[CONF_BC_ONLY] = host.api.baichuan_only
                 user_input[CONF_SUPPORTS_PRIVACY_MODE] = host.api.supported(
                     None, "privacy_mode"
                 )

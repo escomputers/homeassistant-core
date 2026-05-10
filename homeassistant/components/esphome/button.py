@@ -1,7 +1,5 @@
 """Support for ESPHome buttons."""
 
-from __future__ import annotations
-
 from functools import partial
 
 from aioesphomeapi import ButtonInfo, EntityInfo, EntityState
@@ -48,7 +46,7 @@ class EsphomeButton(EsphomeEntity[ButtonInfo, EntityState], ButtonEntity):
     @convert_api_error_ha_error
     async def async_press(self) -> None:
         """Press the button."""
-        self._client.button_command(self._key)
+        self._client.button_command(self._key, device_id=self._static_info.device_id)
 
 
 async_setup_entry = partial(

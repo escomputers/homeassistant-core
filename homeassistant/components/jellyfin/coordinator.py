@@ -1,7 +1,5 @@
 """Data update coordinator for the Jellyfin integration."""
 
-from __future__ import annotations
-
 from datetime import timedelta
 from typing import Any
 
@@ -53,6 +51,9 @@ class JellyfinDataUpdateCoordinator(DataUpdateCoordinator[dict[str, dict[str, An
         sessions = await self.hass.async_add_executor_job(
             self.api_client.jellyfin.sessions
         )
+
+        if sessions is None:
+            return {}
 
         sessions_by_id: dict[str, dict[str, Any]] = {
             session["Id"]: session

@@ -1,7 +1,5 @@
 """Support for an Intergas heater via an InComfort/InTouch Lan2RF gateway."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Any
 
@@ -59,6 +57,16 @@ SENSOR_TYPES: tuple[IncomfortSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         extra_key="is_tapping",
         value_key="tap_temp",
+        entity_registry_enabled_default=False,
+    ),
+    # A lower RSSI value is better
+    # A typical RSSI value is 28 for connection just in range
+    IncomfortSensorEntityDescription(
+        key="rf_message_rssi",
+        translation_key="rf_message_rssi",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_key="rf_message_rssi",
+        extra_key="rfstatus_cntr",
         entity_registry_enabled_default=False,
     ),
 )

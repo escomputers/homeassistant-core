@@ -1,7 +1,5 @@
 """Support for AVM FRITZ!SmartHome temperature sensor only devices."""
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -33,6 +31,9 @@ from homeassistant.util.dt import utc_from_timestamp
 from .coordinator import FritzboxConfigEntry
 from .entity import FritzBoxDeviceEntity
 from .model import FritzEntityDescriptionMixinBase
+
+# Coordinator handles data updates, so we can allow unlimited parallel updates
+PARALLEL_UPDATES = 0
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -67,7 +68,7 @@ def suitable_nextchange_time(device: FritzhomeDevice) -> bool:
 
 def suitable_temperature(device: FritzhomeDevice) -> bool:
     """Check suitablity for temperature sensor."""
-    return device.has_temperature_sensor and not device.has_thermostat
+    return bool(device.has_temperature_sensor)
 
 
 def entity_category_temperature(device: FritzhomeDevice) -> EntityCategory | None:

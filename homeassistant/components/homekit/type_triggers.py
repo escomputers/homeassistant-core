@@ -1,7 +1,5 @@
 """Class to hold all sensor accessories."""
 
-from __future__ import annotations
-
 import logging
 from typing import Any
 
@@ -108,7 +106,7 @@ class DeviceTriggerAccessory(HomeAccessory):
             _LOGGER.log,
         )
 
-    @pyhap_callback  # type: ignore[misc]
+    @pyhap_callback  # type: ignore[untyped-decorator]
     @callback
     def run(self) -> None:
         """Run the accessory."""

@@ -1,9 +1,5 @@
 """Paperless-ngx base entity."""
 
-from __future__ import annotations
-
-from typing import Generic, TypeVar
-
 from homeassistant.components.sensor import EntityDescription
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -11,17 +7,17 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 from .coordinator import PaperlessCoordinator
 
-TCoordinator = TypeVar("TCoordinator", bound=PaperlessCoordinator)
 
-
-class PaperlessEntity(CoordinatorEntity[TCoordinator], Generic[TCoordinator]):
+class PaperlessEntity[CoordinatorT: PaperlessCoordinator](
+    CoordinatorEntity[CoordinatorT]
+):
     """Defines a base Paperless-ngx entity."""
 
     _attr_has_entity_name = True
 
     def __init__(
         self,
-        coordinator: TCoordinator,
+        coordinator: CoordinatorT,
         description: EntityDescription,
     ) -> None:
         """Initialize the Paperless-ngx entity."""
